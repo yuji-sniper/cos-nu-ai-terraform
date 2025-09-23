@@ -1,11 +1,12 @@
 # ==================================================
-# Network
+# VPC
 # ==================================================
-module "network" {
-  source             = "../../modules/network"
+module "vpc" {
+  source             = "../../modules/vpc"
   project            = local.project
   env                = local.env
   region             = local.region
+  cidr_block         = "10.0.0.0/16"
   availability_zones = local.availability_zones
 }
 
@@ -16,16 +17,7 @@ module "security_group" {
   source  = "../../modules/security_group"
   project = local.project
   env     = local.env
-  vpc_id  = module.network.vpc_id
-}
-
-# ==================================================
-# Secret Manager
-# ==================================================
-module "secretmanager" {
-  source  = "../../modules/secret_manager"
-  project = local.project
-  env     = local.env
+  vpc_id  = module.vpc.vpc_id
 }
 
 # ==================================================
@@ -44,6 +36,61 @@ module "s3_private" {
   project = local.project
   env     = local.env
   name = "private"
+}
+
+# ==================================================
+# VPC Endpoint
+# ==================================================
+module "vpc_endpoint_gateway" {
+  source  = "../../modules/vpc_endpoint"
+  region  = local.region
+  vpc_id  = module.vpc.vpc_id
+  gateway = [
+    {
+      service_name = "s3"
+      route_table_ids = [module.vpc.private_route_table_id]
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = "s3:*"
+            Resource = [
+              "arn:aws:s3:::${module.s3_private.bucket_id}",
+              "arn:aws:s3:::${module.s3_private.bucket_id}/*"
+            ]
+          }
+        ]
+      })
+    }
+  ]
+}
+
+module "vpc_endpoint_interface" {
+  source  = "../../modules/vpc_endpoint"
+  region  = local.region
+  vpc_id  = module.vpc.vpc_id
+  interface = [
+    {
+      service_name = "ssm"
+      subnet_ids = module.vpc.private_subnet_ids
+      security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+    },
+    {
+      service_name = "ssmmessages"
+      subnet_ids = module.vpc.private_subnet_ids
+      security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+    }
+  ]
+}
+
+# ==================================================
+# Secret Manager
+# ==================================================
+module "secretmanager" {
+  source  = "../../modules/secret_manager"
+  project = local.project
+  env     = local.env
 }
 
 # ==================================================
