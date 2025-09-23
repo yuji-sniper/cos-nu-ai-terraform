@@ -6,44 +6,90 @@ variable "env" {
   type = string
 }
 
-variable "region" {
+variable "name" {
   type = string
 }
 
-variable "root_domain" {
-  type = string
-}
-
-variable "comfyui_instance_id" {
-  type = string
-}
-
-variable "private_subnet_ids" {
+variable "managed_policy_arns" {
   type = list(string)
+  default = []
 }
 
-variable "security_group_ids" {
+variable "inline_policy_json_documents" {
   type = list(string)
+  default = []
 }
 
-variable "status_dynamo_db_table_name" {
+variable "source_dir" {
   type = string
 }
 
-variable "idle_timeout_minutes" {
+variable "output_path" {
+  type = string
+}
+
+variable "s3_bucket_id" {
+  type = string
+}
+
+variable "s3_key" {
+  type = string
+}
+
+variable "handler" {
+  type = string
+}
+
+variable "runtime" {
+  type = string
+}
+
+variable "timeout" {
   type = number
+  default = 300
 }
 
-variable "comfyui_bff" {
-  type = object({
-    source_dir = string
-    output_path = string
-  })
+variable "memory_size" {
+  type = number
+  default = 128
 }
 
-variable "stop_comfyui" {
+variable "environment" {
+  type = map(string)
+  default = {}
+}
+
+variable "vpc_config" {
   type = object({
-    source_dir = string
-    output_path = string
+    subnet_ids = list(string)
+    security_group_ids = list(string)
   })
+  default = null
+}
+
+variable "enable_function_url" {
+  type = bool
+  default = false
+}
+
+variable "function_url_auth_type" {
+  type = string
+  default = "NONE"
+}
+
+variable "function_url_invoke_mode" {
+  type = string
+  default = "BUFFERED"
+}
+
+variable "function_url_cors" {
+  type = object({
+    allow_credentials = bool
+    allow_origins = list(string)
+    allow_methods = list(string)
+    allow_headers = list(string)
+    expose_headers = list(string)
+    max_age = number
+  })
+  default = null
 }

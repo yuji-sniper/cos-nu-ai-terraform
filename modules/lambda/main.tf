@@ -1,13 +1,14 @@
-data "aws_caller_identity" "current" {}
-
-# S3バケット（Lambda関数のソースコードを保存）
-resource "aws_s3_bucket" "lambda_functions" {
-  bucket = "${var.project}-${var.env}-lambda-functions"
-  region = var.region
-  force_destroy = true
+# ==================================================
+# CloudWatchロググループ
+# ==================================================
+resource "aws_cloudwatch_log_group" "this" {
+  name = "/aws/lambda/${var.project}-${var.env}-${var.name}"
+  retention_in_days = 30
 }
 
-# IAMロール（Lambda Assume Role）
+# ==================================================
+# IAMロール
+# ==================================================
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -18,103 +19,110 @@ data "aws_iam_policy_document" "lambda_assume" {
   }
 }
 
-# ==================================================
-# Lambda(ComfyUI BFF)
-# ==================================================
-# IAMロール
-resource "aws_iam_role" "lambda_comfyui_bff" {
-  name = "lambda_comfyui_bff"
+resource "aws_iam_role" "exec" {
+  name = "${var.project}-${var.env}-${var.name}-lambda-exec"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_comfyui_bff_basic" {
-  role = aws_iam_role.lambda_comfyui_bff.name
+resource "aws_iam_role_policy_attachment" "basic" {
+  role = aws_iam_role.exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-data "aws_iam_policy_document" "lambda_comfyui_bff" {
-  statement {
-    actions = [
-      "ec2:DescribeInstances",
-      "ec2:StartInstances"
-    ]
-    resources = ["arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${var.comfyui_instance_id}"]
-  }
-  statement {
-    actions = [
-      "dynamodb:GetItem",
-      "dynamodb:PutItem"
-    ]
-    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.status_dynamo_db_table_name}"]
-  }
+resource "aws_iam_role_policy_attachment" "managed" {
+  for_each = toset(var.managed_policy_arns)
+  role = aws_iam_role.exec.name
+  policy_arn = each.value
 }
 
-resource "aws_iam_role_policy" "lambda_comfyui_bff" {
-  role = aws_iam_role.lambda_comfyui_bff.name
-  policy = data.aws_iam_policy_document.lambda_comfyui_bff.json
+resource "aws_iam_role_policy" "inline" {
+  for_each = toset(var.inline_policy_json_documents)
+  role = aws_iam_role.exec.name
+  policy = each.value
 }
 
+# ==================================================
 # Lambda関数
-data "archive_file" "lambda_comfyui_bff" {
+# ==================================================
+data "archive_file" "this" {
   type = "zip"
-  source_dir = var.comfyui_bff.source_dir
-  output_path = var.comfyui_bff.output_path
+  source_dir = var.source_dir
+  output_path = var.output_path
 }
 
-resource "aws_s3_object" "lambda_comfyui_bff" {
-  bucket = aws_s3_bucket.lambda_functions.bucket
-  key = "comfyui_bff.zip"
-  source = data.archive_file.lambda_comfyui_bff.output_path
-  etag = filemd5(data.archive_file.lambda_comfyui_bff.output_path)
+resource "aws_s3_object" "this" {
+  bucket = var.s3_bucket_id
+  key = var.s3_key
+  source = data.archive_file.this.output_path
+  etag = filemd5(data.archive_file.this.output_path)
 }
 
-resource "aws_lambda_function" "lambda_comfyui_bff" {
-  function_name = "${var.project}-${var.env}-comfyui-bff"
-  role = aws_iam_role.lambda_comfyui_bff.arn
-  handler = "lambda_function.handler"
-  runtime = "nodejs22.x"
-  s3_bucket = aws_s3_bucket.lambda_functions.bucket
-  s3_key = "comfyui_bff.zip"
-  source_code_hash = filebase64sha256(data.archive_file.lambda_comfyui_bff.output_path)
-  timeout = 300
-  memory_size = 128
+resource "aws_lambda_function" "this" {
+  function_name = "${var.project}-${var.env}-${var.name}"
+  role = aws_iam_role.exec.arn
+  handler = var.handler
+  runtime = var.runtime
+  s3_bucket = var.s3_bucket_id
+  s3_key = var.s3_key
+  source_code_hash = filebase64sha256(data.archive_file.this.output_path)
+  timeout = var.timeout
+  memory_size = var.memory_size
 
-  vpc_config {
-    subnet_ids = var.private_subnet_ids
-    security_group_ids = var.security_group_ids
+  logging_config {
+    log_group = aws_cloudwatch_log_group.this.name
+    log_format = "JSON"
   }
 
   environment {
-    variables = {
-      COMFYUI_INSTANCE_ID = var.comfyui_instance_id
-      COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = var.status_dynamo_db_table_name
+    variables = var.environment
+  }
+
+  dynamic "vpc_config" {
+    for_each = var.vpc_config != null ? [1] : []
+    content {
+      subnet_ids = var.vpc_config.subnet_ids
+      security_group_ids = var.vpc_config.security_group_ids
     }
   }
 }
 
-resource "aws_lambda_function_url" "lambda_comfyui_bff" {
-  function_name = aws_lambda_function.lambda_comfyui_bff.function_name
-  authorization_type = "AWS_IAM"
-  invoke_mode = "BUFFERED"
-
-  cors {
-    allow_origins = ["https://app.${var.root_domain}"]
-    allow_methods = ["GET", "POST"]
-    allow_headers = ["*"]
-    expose_headers = ["*"]
-    max_age = 300
+# ==================================================
+# Lambda関数URL
+# ==================================================
+resource "aws_lambda_function_url" "this" {
+  count = var.enable_function_url ? 1 : 0
+  function_name = aws_lambda_function.this.function_name
+  authorization_type = var.function_url_auth_type
+  invoke_mode = var.function_url_invoke_mode
+  dynamic "cors" {
+    for_each = var.function_url_cors != null ? [1] : []
+    content {
+      allow_credentials = var.function_url_cors.allow_credentials
+      allow_origins = var.function_url_cors.allow_origins
+      allow_methods = var.function_url_cors.allow_methods
+      allow_headers = var.function_url_cors.allow_headers
+      expose_headers = var.function_url_cors.expose_headers
+      max_age = var.function_url_cors.max_age
+    }
   }
 }
 
-# IAMユーザー(Function URL 呼び出し用)
-resource "aws_iam_user" "comfyui_bff_lambda_function_url_invoker" {
-  name = "${var.project}-${var.env}-comfyui-bff-lambda-function-url-invoker"
+# ==================================================
+# 関数URL呼び出し用のIAMユーザー（authorization_typeがAWS_IAMの場合のみ）
+# ==================================================
+locals {
+  is_fn_url_auth_type_aws_iam = var.enable_function_url && var.function_url_auth_type == "AWS_IAM"
 }
 
-data "aws_iam_policy_document" "comfyui_bff_lambda_function_url_invoker" {
+resource "aws_iam_user" "function_url_invoke" {
+  count = local.is_fn_url_auth_type_aws_iam ? 1 : 0
+  name = "${var.project}-${var.env}-${var.name}-function-url-invoke"
+}
+
+data "aws_iam_policy_document" "function_url_invoke" {
   statement {
     actions = ["lambda:InvokeFunctionUrl"]
-    resources = [aws_lambda_function.lambda_comfyui_bff.arn]
+    resources = [aws_lambda_function.this.arn]
     condition {
       test = "StringEquals"
       variable = "lambda:FunctionUrlAuthType"
@@ -123,91 +131,8 @@ data "aws_iam_policy_document" "comfyui_bff_lambda_function_url_invoker" {
   }
 }
 
-resource "aws_iam_user_policy" "lambda_comfyui_bff_invoker_policy" {
-  user = aws_iam_user.comfyui_bff_lambda_function_url_invoker.name
-  policy = data.aws_iam_policy_document.comfyui_bff_lambda_function_url_invoker.json
-}
-
-# ==================================================
-# Lambda(Stop ComfyUI)
-# ==================================================
-# IAMロール
-resource "aws_iam_role" "lambda_stop_comfyui" {
-  name = "lambda_stop_comfyui"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_stop_comfyui_basic" {
-  role = aws_iam_role.lambda_stop_comfyui.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-data "aws_iam_policy_document" "lambda_stop_comfyui" {
-  statement {
-    actions = [
-      "ec2:DescribeInstances",
-      "ec2:StopInstances"
-    ]
-    resources = ["arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${var.comfyui_instance_id}"]
-  }
-  statement {
-    actions = ["dynamodb:GetItem"]
-    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.status_dynamo_db_table_name}"]
-  }
-}
-
-resource "aws_iam_policy" "lambda_stop_comfyui" {
-  name = "lambda_stop_comfyui"
-  policy = data.aws_iam_policy_document.lambda_stop_comfyui.json
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_stop_comfyui" {
-  role = aws_iam_role.lambda_stop_comfyui.name
-  policy_arn = aws_iam_policy.lambda_stop_comfyui.arn
-}
-
-# Lambda関数
-data "archive_file" "lambda_stop_comfyui" {
-  type = "zip"
-  source_dir = var.stop_comfyui.source_dir
-  output_path = var.stop_comfyui.output_path
-}
-
-resource "aws_s3_object" "lambda_stop_comfyui" {
-  bucket = aws_s3_bucket.lambda_functions.bucket
-  key = "stop_comfyui.zip"
-  source = data.archive_file.lambda_stop_comfyui.output_path
-  etag = filemd5(data.archive_file.lambda_stop_comfyui.output_path)
-}
-
-resource "aws_lambda_function" "lambda_stop_comfyui" {
-  function_name = "${var.project}-${var.env}-stop-comfyui"
-  role = aws_iam_role.lambda_stop_comfyui.arn
-  handler = "lambda_function.handler"
-  runtime = "nodejs22.x"
-  s3_bucket = aws_s3_bucket.lambda_functions.bucket
-  s3_key = "stop_comfyui.zip"
-  source_code_hash = filebase64sha256(data.archive_file.lambda_stop_comfyui.output_path)
-  timeout = 300
-  memory_size = 128
-
-  vpc_config {
-    subnet_ids = var.private_subnet_ids
-    security_group_ids = var.security_group_ids
-  }
-
-  environment {
-    variables = {
-      COMFYUI_INSTANCE_ID = var.comfyui_instance_id
-      COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = var.status_dynamo_db_table_name
-    }
-  }
-}
-
-# TODO: EventBridgeモジュールに書かないと循環参照になりそう
-resource "aws_lambda_permission" "lambda_stop_comfyui" {
-  action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.lambda_stop_comfyui.function_name
-  principal = "events.amazonaws.com"
-  source_arn = aws_cloudwatch_event_rule.stop_comfyui.arn
+resource "aws_iam_user_policy" "function_url_invoke" {
+  count = local.is_fn_url_auth_type_aws_iam ? 1 : 0
+  user = aws_iam_user.function_url_invoke[0].name
+  policy = data.aws_iam_policy_document.function_url_invoke.json
 }

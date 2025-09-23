@@ -61,24 +61,92 @@ module "dynamodb" {
   env     = local.env
 }
 
-module "lambda" {
+module "lambda_comfyui_bff" {
   source  = "../../modules/lambda"
   project = local.project
   env     = local.env
-  region  = local.region
-  root_domain = local.root_domain
-  comfyui_instance_id = module.ec2.comfyui_instance_id
-  private_subnet_ids = module.network.private_subnet_ids
-  security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
-  status_dynamo_db_table_name = module.dynamodb.comfyui_instance_table_name
-  idle_timeout_minutes = 20
-  comfyui_bff = {
-    source_dir = "files/lambda/functions/comfyui_bff"
-    output_path = "files/lambda/functions/comfyui_bff/lambda_function.zip"
+  name = "comfyui-bff"
+  # TODO: 汎用化したら修正
+  inline_policy_json_documents = [
+    jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect = "Allow"
+          Action = ["ec2:DescribeInstances", "ec2:StartInstances"]
+          Resource = ["arn:aws:ec2:${local.region}:${data.aws_caller_identity.current.account_id}:instance/${module.ec2.comfyui_instance_id}"]
+        },
+        {
+          Effect = "Allow"
+          Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+          Resource = ["arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb.comfyui_instance_table_name}"]
+        }
+      ]
+    }),
+  ]
+  source_dir = "files/lambda/functions/comfyui_bff"
+  output_path = "outputs/lambda/functions/comfyui_bff.zip"
+  s3_bucket_id = module.s3.lambda_functions_bucket_id
+  s3_key = "comfyui_bff.zip"
+  handler = "lambda_function.handler"
+  runtime = "nodejs22.x"
+  # TODO: 汎用化したら修正
+  environment = {
+    COMFYUI_INSTANCE_ID = module.ec2.comfyui_instance_id
+    COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = module.dynamodb.comfyui_instance_table_name
   }
-  stop_comfyui = {
-    source_dir = "files/lambda/functions/stop_comfyui"
-    output_path = "files/lambda/functions/stop_comfyui/lambda_function.zip"
+  # TODO: 汎用化したら修正
+  vpc_config = {
+    subnet_ids = module.network.private_subnet_ids
+    security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+  }
+  enable_function_url = true
+  function_url_auth_type = "AWS_IAM"
+  function_url_cors = {
+    allow_credentials = true
+    allow_origins = ["https://app.${local.root_domain}"]
+    allow_methods = ["GET", "POST"]
+    allow_headers = ["*"]
+    expose_headers = ["*"]
+    max_age = 300
+  }
+}
+
+module "lambda_stop_comfyui" {
+  source  = "../../modules/lambda"
+  project = local.project
+  env     = local.env
+  name = "stop-comfyui"
+  inline_policy_json_documents = [
+    jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect = "Allow"
+          Action = ["ec2:DescribeInstances", "ec2:StopInstances"]
+          Resource = ["arn:aws:ec2:${local.region}:${data.aws_caller_identity.current.account_id}:instance/${module.ec2.comfyui_instance_id}"]
+        },
+        {
+          Effect = "Allow"
+          Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+          Resource = ["arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb.comfyui_instance_table_name}"]
+        }
+      ]
+    }),
+  ]
+  source_dir = "files/lambda/functions/stop_comfyui"
+  output_path = "outputs/lambda/functions/stop_comfyui.zip"
+  s3_bucket_id = module.s3.lambda_functions_bucket_id
+  s3_key = "stop_comfyui.zip"
+  handler = "lambda_function.handler"
+  runtime = "nodejs22.x"
+  environment = {
+    COMFYUI_INSTANCE_ID = module.ec2.comfyui_instance_id
+    COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = module.dynamodb.comfyui_instance_table_name
+  }
+  vpc_config = {
+    subnet_ids = module.network.private_subnet_ids
+    security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
   }
 }
 
