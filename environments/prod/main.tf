@@ -82,10 +82,11 @@ module "lambda" {
   }
 }
 
-module "eventbridge" {
-  source  = "../../modules/eventbridge"
+module "scheduler_stop_comfyui" {
+  source  = "../../modules/scheduler"
   project = local.project
   env     = local.env
-  region  = local.region
-  stop_comfyui_lambda_function_name = module.lambda.stop_comfyui_lambda_function_name
+  name = "stop_comfyui"
+  target_arn = module.lambda.stop_comfyui_lambda_function_arn
+  schedule_expression = "cron(0/5 * * * ? *)"
 }
