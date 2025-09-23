@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 # ==================================================
 # VPC
 # ==================================================
@@ -13,11 +15,109 @@ module "vpc" {
 # ==================================================
 # Security Group
 # ==================================================
-module "security_group" {
+data "aws_prefix_list" "s3" {
+  name = "com.amazonaws.${local.region}.s3"
+}
+
+data "aws_prefix_list" "dynamodb" {
+  name = "com.amazonaws.${local.region}.dynamodb"
+}
+
+module "security_group_ec2_comfyui" {
+  source  = "../../modules/security_group"
+  project = local.project
+  env     = local.env
+  name = "ec2-comfyui"
+  vpc_id = module.vpc.vpc_id
+}
+
+module "security_group_lambda_comfyui_bff" {
   source  = "../../modules/security_group"
   project = local.project
   env     = local.env
   vpc_id  = module.vpc.vpc_id
+  name = "lambda-comfyui-bff"
+}
+
+module "security_group_lambda_stop_comfyui" {
+  source  = "../../modules/security_group"
+  project = local.project
+  env     = local.env
+  name = "lambda-stop-comfyui"
+  vpc_id = module.vpc.vpc_id
+}
+
+module "security_group_rule_ec2_comfyui" {
+  source  = "../../modules/security_group_rule"
+  security_group_id = module.security_group_ec2_comfyui.security_group_id
+  ingress_from_sg = [
+    {
+      referenced_security_group_id = module.security_group_lambda_comfyui_bff.security_group_id
+      from_port = 8188
+      to_port = 8188
+      ip_protocol = "tcp"
+    },
+    {
+      referenced_security_group_id = module.security_group_lambda_stop_comfyui.security_group_id
+      from_port = 8188
+      to_port = 8188
+      ip_protocol = "tcp"
+    }
+  ]
+}
+
+module "security_group_rule_lambda_comfyui_bff" {
+  source  = "../../modules/security_group_rule"
+  security_group_id = module.security_group_lambda_comfyui_bff.security_group_id
+  egress_to_sg = [
+    {
+      referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
+      from_port = 8188
+      to_port = 8188
+      ip_protocol = "tcp"
+    }
+  ]
+  egress_to_prefix_list = [
+    {
+      prefix_list_id = data.aws_prefix_list.s3.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    },
+    {
+      prefix_list_id = data.aws_prefix_list.dynamodb.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    }
+  ]
+}
+
+module "security_group_rule_lambda_stop_comfyui" {
+  source  = "../../modules/security_group_rule"
+  security_group_id = module.security_group_lambda_stop_comfyui.security_group_id
+  egress_to_sg = [
+    {
+      referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
+      from_port = 8188
+      to_port = 8188
+      ip_protocol = "tcp"
+    }
+  ]
+  egress_to_prefix_list = [
+    {
+      prefix_list_id = data.aws_prefix_list.s3.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    },
+    {
+      prefix_list_id = data.aws_prefix_list.dynamodb.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    }
+  ]
 }
 
 # ==================================================
@@ -36,6 +136,15 @@ module "s3_private" {
   project = local.project
   env     = local.env
   name = "private"
+}
+
+# ==================================================
+# DynamoDB
+# ==================================================
+module "dynamodb" {
+  source  = "../../modules/dynamodb"
+  project = local.project
+  env     = local.env
 }
 
 # ==================================================
@@ -62,6 +171,22 @@ module "vpc_endpoint_gateway" {
           }
         ]
       })
+    },
+    {
+      service_name = "dynamodb"
+      route_table_ids = [module.vpc.private_route_table_id]
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = "dynamodb:*"
+            Resource = [
+              "arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb.comfyui_instance_table_name}"
+            ]
+          }
+        ]
+      })
     }
   ]
 }
@@ -74,12 +199,12 @@ module "vpc_endpoint_interface" {
     {
       service_name = "ssm"
       subnet_ids = module.vpc.private_subnet_ids
-      security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+      security_group_ids = [module.security_group_ec2_comfyui.security_group_id]
     },
     {
       service_name = "ssmmessages"
       subnet_ids = module.vpc.private_subnet_ids
-      security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+      security_group_ids = [module.security_group_ec2_comfyui.security_group_id]
     }
   ]
 }
@@ -127,18 +252,9 @@ module "ec2" {
   # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7 (Ubuntu 22.04) 20250907
   ami                        = "ami-0365bff494b18bf93"
   instance_type              = "g4dn.xlarge"
-  private_subnet_id          = module.network.private_subnet_ids[0]
-  comfyui_security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+  private_subnet_id          = module.vpc.private_subnet_ids[0]
+  comfyui_security_group_ids = [module.security_group_ec2_comfyui.security_group_id]
   ebs_volume_size            = 50
-}
-
-# ==================================================
-# DynamoDB
-# ==================================================
-module "dynamodb" {
-  source  = "../../modules/dynamodb"
-  project = local.project
-  env     = local.env
 }
 
 # ==================================================
@@ -178,10 +294,9 @@ module "lambda_comfyui_bff" {
     COMFYUI_INSTANCE_ID = module.ec2.comfyui_instance_id
     COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = module.dynamodb.comfyui_instance_table_name
   }
-  # TODO: 汎用化したら修正
   vpc_config = {
-    subnet_ids = module.network.private_subnet_ids
-    security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+    subnet_ids = module.vpc.private_subnet_ids
+    security_group_ids = [module.security_group_lambda_comfyui_bff.security_group_id]
   }
   enable_function_url = true
   function_url_auth_type = "AWS_IAM"
@@ -228,8 +343,8 @@ module "lambda_stop_comfyui" {
     COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = module.dynamodb.comfyui_instance_table_name
   }
   vpc_config = {
-    subnet_ids = module.network.private_subnet_ids
-    security_group_ids = [module.security_group.ec2_comfyui_security_group_id]
+    subnet_ids = module.vpc.private_subnet_ids
+    security_group_ids = [module.security_group_lambda_stop_comfyui.security_group_id]
   }
 }
 
