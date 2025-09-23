@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 # S3バケット（Lambda関数のソースコードを保存）
 resource "aws_s3_bucket" "lambda_functions" {
   bucket = "${var.project}-${var.env}-lambda-functions"
@@ -43,7 +45,7 @@ data "aws_iam_policy_document" "lambda_comfyui_bff" {
       "dynamodb:GetItem",
       "dynamodb:PutItem"
     ]
-    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.comfyui_bff.status_dynamo_db_table_name}"]
+    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.status_dynamo_db_table_name}"]
   }
 }
 
@@ -61,18 +63,18 @@ data "archive_file" "lambda_comfyui_bff" {
 
 resource "aws_s3_object" "lambda_comfyui_bff" {
   bucket = aws_s3_bucket.lambda_functions.bucket
-  key = "lambda_comfyui.zip"
+  key = "comfyui_bff.zip"
   source = data.archive_file.lambda_comfyui_bff.output_path
-  etag = filemd5(data.archive_file.lambda_comfyui.output_path)
+  etag = filemd5(data.archive_file.lambda_comfyui_bff.output_path)
 }
 
 resource "aws_lambda_function" "lambda_comfyui_bff" {
-  function_name = "${var.project}-${var.env}-lambda-comfyui-bff"
+  function_name = "${var.project}-${var.env}-comfyui-bff"
   role = aws_iam_role.lambda_comfyui_bff.arn
   handler = "lambda_function.handler"
   runtime = "nodejs22.x"
   s3_bucket = aws_s3_bucket.lambda_functions.bucket
-  s3_key = "lambda_comfyui_bff.zip"
+  s3_key = "comfyui_bff.zip"
   source_code_hash = filebase64sha256(data.archive_file.lambda_comfyui_bff.output_path)
   timeout = 300
   memory_size = 128
@@ -173,18 +175,18 @@ data "archive_file" "lambda_stop_comfyui" {
 
 resource "aws_s3_object" "lambda_stop_comfyui" {
   bucket = aws_s3_bucket.lambda_functions.bucket
-  key = "lambda_stop_comfyui.zip"
+  key = "stop_comfyui.zip"
   source = data.archive_file.lambda_stop_comfyui.output_path
   etag = filemd5(data.archive_file.lambda_stop_comfyui.output_path)
 }
 
 resource "aws_lambda_function" "lambda_stop_comfyui" {
-  function_name = "${var.project}-${var.env}-lambda-stop-comfyui"
+  function_name = "${var.project}-${var.env}-stop-comfyui"
   role = aws_iam_role.lambda_stop_comfyui.arn
   handler = "lambda_function.handler"
   runtime = "nodejs22.x"
   s3_bucket = aws_s3_bucket.lambda_functions.bucket
-  s3_key = "lambda_stop_comfyui.zip"
+  s3_key = "stop_comfyui.zip"
   source_code_hash = filebase64sha256(data.archive_file.lambda_stop_comfyui.output_path)
   timeout = 300
   memory_size = 128

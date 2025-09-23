@@ -1,6 +1,5 @@
 resource "aws_s3_bucket" "private" {
   bucket        = "${var.project}-${var.env}-private"
-  region        = var.region
   force_destroy = true
 }
 

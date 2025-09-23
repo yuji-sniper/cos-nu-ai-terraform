@@ -6,7 +6,7 @@ variable "env" {
   type = string
 }
 
-variable "s3_private_bucket_arn" {
+variable "s3_private_bucket_id" {
   type = string
 }
 

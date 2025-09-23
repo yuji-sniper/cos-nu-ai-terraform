@@ -22,7 +22,7 @@ resource "aws_iam_role_policy_attachment" "ec2_comfyui_ssm_core" {
 data "aws_iam_policy_document" "ec2_comfyui_s3_private_put" {
   statement {
     actions   = ["s3:PutObject"]
-    resources = ["${var.s3_private_bucket_arn}/*"]
+    resources = ["arn:aws:s3:::${var.s3_private_bucket_id}/*"]
   }
 }
 
