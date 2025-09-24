@@ -1,6 +1,6 @@
 resource "aws_dynamodb_table" "this" {
   name         = "${var.project}-${var.env}-${var.name}"
-  billing_mode = "PAY_PER_REQUEST"
+  billing_mode = var.billing_mode
   hash_key     = var.pk.name
 
   attribute {
