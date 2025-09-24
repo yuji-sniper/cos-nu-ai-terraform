@@ -11,12 +11,12 @@ variable "name" {
 }
 
 variable "managed_policy_arns" {
-  type = list(string)
+  type    = list(string)
   default = []
 }
 
 variable "inline_policy_json_document" {
-  type = string
+  type    = string
   default = null
 }
 
@@ -42,10 +42,10 @@ variable "associate_public_ip_address" {
 
 variable "root_block_device" {
   type = object({
-    volume_size = number
-    volume_type = string
-    iops = number
-    encrypted = bool
+    volume_size           = number
+    volume_type           = string
+    iops                  = number
+    encrypted             = bool
     delete_on_termination = bool
   })
 }

@@ -11,6 +11,6 @@ variable "name" {
 }
 
 variable "enable_versioning" {
-  type = bool
+  type    = bool
   default = false
 }

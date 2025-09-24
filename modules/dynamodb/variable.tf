@@ -11,7 +11,7 @@ variable "name" {
 }
 
 variable "billing_mode" {
-  type = string
+  type    = string
   default = "PAY_PER_REQUEST"
 }
 
@@ -24,6 +24,6 @@ variable "pk" {
 }
 
 variable "point_in_time_recovery" {
-  type = bool
+  type    = bool
   default = false
 }

@@ -8,17 +8,17 @@ variable "vpc_id" {
 
 variable "gateway" {
   type = list(object({
-    service_name = string
+    service_name    = string
     route_table_ids = list(string)
-    policy = string
+    policy          = string
   }))
   default = []
 }
 
 variable "interface" {
   type = list(object({
-    service_name = string
-    subnet_ids = list(string)
+    service_name       = string
+    subnet_ids         = list(string)
     security_group_ids = list(string)
   }))
   default = []

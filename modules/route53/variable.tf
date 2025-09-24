@@ -8,7 +8,7 @@ variable "domain_name" {
 
 variable "cname" {
   type = object({
-    ttl = number
+    ttl     = number
     records = list(string)
   })
   default = null
@@ -16,7 +16,7 @@ variable "cname" {
 
 variable "a" {
   type = object({
-    alias_name = string
+    alias_name    = string
     alias_zone_id = string
   })
   default = null
@@ -24,7 +24,7 @@ variable "a" {
 
 variable "aaaa" {
   type = object({
-    alias_name = string
+    alias_name    = string
     alias_zone_id = string
   })
   default = null

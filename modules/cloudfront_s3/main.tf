@@ -31,7 +31,7 @@ resource "aws_acm_certificate_validation" "this" {
 # キー
 # ==============================
 resource "aws_cloudfront_public_key" "this" {
-  count = var.trusted_public_key != null ? 1 : 0
+  count       = var.trusted_public_key != null ? 1 : 0
   name        = "${var.project}-${var.env}-${var.name}"
   encoded_key = var.trusted_public_key
 }
@@ -105,7 +105,7 @@ resource "aws_cloudfront_distribution" "this" {
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
-  
+
   restrictions {
     geo_restriction {
       restriction_type = "whitelist"
@@ -153,9 +153,9 @@ locals {
 
 resource "aws_route53_record" "this" {
   for_each = toset(local.record_types)
-  zone_id = var.zone_id
-  name    = var.domain_name
-  type    = each.value
+  zone_id  = var.zone_id
+  name     = var.domain_name
+  type     = each.value
   alias {
     name                   = aws_cloudfront_distribution.this.domain_name
     zone_id                = aws_cloudfront_distribution.this.hosted_zone_id

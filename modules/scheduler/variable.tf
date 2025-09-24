@@ -19,6 +19,6 @@ variable "schedule_expression" {
 }
 
 variable "timezone" {
-  type = string
+  type    = string
   default = "Asia/Tokyo"
 }

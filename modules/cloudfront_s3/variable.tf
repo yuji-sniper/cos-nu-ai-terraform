@@ -1,32 +1,32 @@
 variable "project" {
-  type        = string
+  type = string
 }
 
 variable "env" {
-  type        = string
+  type = string
 }
 
 variable "region" {
-  type        = string
+  type = string
 }
 
 variable "name" {
-  type        = string
+  type = string
 }
 
 variable "zone_id" {
-  type        = string
+  type = string
 }
 
 variable "domain_name" {
-  type        = string
+  type = string
 }
 
 variable "s3_bucket_id" {
-  type        = string
+  type = string
 }
 
 variable "trusted_public_key" {
-  type        = string
+  type    = string
   default = null
 }

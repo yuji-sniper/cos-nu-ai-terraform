@@ -11,12 +11,12 @@ variable "name" {
 }
 
 variable "managed_policy_arns" {
-  type = list(string)
+  type    = list(string)
   default = []
 }
 
 variable "inline_policy_json_documents" {
-  type = list(string)
+  type    = list(string)
   default = []
 }
 
@@ -45,51 +45,51 @@ variable "runtime" {
 }
 
 variable "timeout" {
-  type = number
+  type    = number
   default = 300
 }
 
 variable "memory_size" {
-  type = number
+  type    = number
   default = 128
 }
 
 variable "environment" {
-  type = map(string)
+  type    = map(string)
   default = {}
 }
 
 variable "vpc_config" {
   type = object({
-    subnet_ids = list(string)
+    subnet_ids         = list(string)
     security_group_ids = list(string)
   })
   default = null
 }
 
 variable "enable_function_url" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "function_url_auth_type" {
-  type = string
+  type    = string
   default = "NONE"
 }
 
 variable "function_url_invoke_mode" {
-  type = string
+  type    = string
   default = "BUFFERED"
 }
 
 variable "function_url_cors" {
   type = object({
     allow_credentials = bool
-    allow_origins = list(string)
-    allow_methods = list(string)
-    allow_headers = list(string)
-    expose_headers = list(string)
-    max_age = number
+    allow_origins     = list(string)
+    allow_methods     = list(string)
+    allow_headers     = list(string)
+    expose_headers    = list(string)
+    max_age           = number
   })
   default = null
 }

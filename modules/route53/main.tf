@@ -1,5 +1,5 @@
 resource "aws_route53_record" "cname" {
-  count = var.cname != null ? 1 : 0
+  count   = var.cname != null ? 1 : 0
   zone_id = var.zone_id
   name    = var.domain_name
   type    = "CNAME"
@@ -8,7 +8,7 @@ resource "aws_route53_record" "cname" {
 }
 
 resource "aws_route53_record" "a" {
-  count = var.a != null ? 1 : 0
+  count   = var.a != null ? 1 : 0
   zone_id = var.zone_id
   name    = var.domain_name
   type    = "A"
@@ -20,7 +20,7 @@ resource "aws_route53_record" "a" {
 }
 
 resource "aws_route53_record" "aaaa" {
-  count = var.aaaa != null ? 1 : 0
+  count   = var.aaaa != null ? 1 : 0
   zone_id = var.zone_id
   name    = var.domain_name
   type    = "AAAA"
