@@ -259,11 +259,14 @@ module "cloudfront_s3_private" {
 # ==================================================
 # Route53
 # ==================================================
-module "route53" {
-  source                                  = "../../modules/route53"
-  root_domain                             = local.root_domain
-  vercel_cname_target                     = var.vercel_cname_target
-  cloudfront_cdn_distribution_domain_name = module.cloudfront.cdn_distribution_domain_name
+module "route53_vercel_cname" {
+  source  = "../../modules/route53"
+  zone_id = data.aws_route53_zone.root.zone_id
+  domain_name = "app.${local.root_domain}"
+  cname = {
+    ttl = 300
+    records = [var.vercel_cname_target]
+  }
 }
 
 # ==================================================

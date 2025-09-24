@@ -1,11 +1,31 @@
-variable "root_domain" {
+variable "zone_id" {
   type = string
 }
 
-variable "vercel_cname_target" {
+variable "domain_name" {
   type = string
 }
 
-variable "cloudfront_cdn_distribution_domain_name" {
-  type = string
+variable "cname" {
+  type = object({
+    ttl = number
+    records = list(string)
+  })
+  default = null
+}
+
+variable "a" {
+  type = object({
+    alias_name = string
+    alias_zone_id = string
+  })
+  default = null
+}
+
+variable "aaaa" {
+  type = object({
+    alias_name = string
+    alias_zone_id = string
+  })
+  default = null
 }
