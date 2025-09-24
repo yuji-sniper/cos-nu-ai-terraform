@@ -1,5 +1,10 @@
 data "aws_caller_identity" "current" {}
 
+data "aws_route53_zone" "root" {
+  name         = local.root_domain
+  private_zone = false
+}
+
 # ==================================================
 # VPC
 # ==================================================
@@ -228,25 +233,27 @@ module "vpc_endpoint_interface" {
 # Secret Manager
 # ==================================================
 # CDN Private Key（apply後にCLIで秘密鍵の値に更新）
-module "secret_manager_cdn_private_key" {
+module "secret_manager_media_private_private_key" {
   source  = "../../modules/secret_manager"
   project = local.project
   env     = local.env
-  name = "cdn-private-key"
+  name = "media-private-private-key"
   secret_string = "dummy"
 }
 
 # ==================================================
 # CloudFront
 # ==================================================
-module "cloudfront" {
-  source                 = "../../modules/cloudfront"
-  project                = local.project
-  env                    = local.env
-  root_domain            = local.root_domain
-  cdn_public_key         = var.cdn_public_key
-  cdn_bucket_id          = module.s3.private_bucket_id
-  cdn_bucket_domain_name = module.s3.private_bucket_domain_name
+module "cloudfront_s3_private" {
+  source  = "../../modules/cloudfront_s3"
+  project = local.project
+  env     = local.env
+  region = local.region
+  name = "media-private"
+  zone_id = data.aws_route53_zone.root.zone_id
+  domain_name = "media.${local.root_domain}"
+  s3_bucket_id = module.s3_private.bucket_id
+  trusted_public_key = module.secret_manager_media_private_private_key.secret_string
 }
 
 # ==================================================
