@@ -85,22 +85,22 @@ module "security_group_rule_lambda_comfyui_bff" {
       ip_protocol                  = "tcp"
     }
   ]
-  # egress_to_prefix_list = [
-  #   {
-  #     description    = "request to S3"
-  #     prefix_list_id = data.aws_prefix_list.s3.id
-  #     from_port      = 443
-  #     to_port        = 443
-  #     ip_protocol    = "tcp"
-  #   },
-  #   {
-  #     description    = "request to DynamoDB"
-  #     prefix_list_id = data.aws_prefix_list.dynamodb.id
-  #     from_port      = 443
-  #     to_port        = 443
-  #     ip_protocol    = "tcp"
-  #   }
-  # ]
+  egress_to_prefix_list = [
+    {
+      description    = "request to S3"
+      prefix_list_id = data.aws_prefix_list.s3.id
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
+    },
+    {
+      description    = "request to DynamoDB"
+      prefix_list_id = data.aws_prefix_list.dynamodb.id
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
+    }
+  ]
 }
 
 module "security_group_rule_lambda_stop_comfyui" {
@@ -115,22 +115,22 @@ module "security_group_rule_lambda_stop_comfyui" {
       ip_protocol                  = "tcp"
     }
   ]
-  # egress_to_prefix_list = [
-  #   {
-  #     description    = "request to S3"
-  #     prefix_list_id = data.aws_prefix_list.s3.id
-  #     from_port      = 443
-  #     to_port        = 443
-  #     ip_protocol    = "tcp"
-  #   },
-  #   {
-  #     description    = "request to DynamoDB"
-  #     prefix_list_id = data.aws_prefix_list.dynamodb.id
-  #     from_port      = 443
-  #     to_port        = 443
-  #     ip_protocol    = "tcp"
-  #   }
-  # ]
+  egress_to_prefix_list = [
+    {
+      description    = "request to S3"
+      prefix_list_id = data.aws_prefix_list.s3.id
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
+    },
+    {
+      description    = "request to DynamoDB"
+      prefix_list_id = data.aws_prefix_list.dynamodb.id
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
+    }
+  ]
 }
 
 # ==================================================
