@@ -141,10 +141,17 @@ module "s3_private" {
 # ==================================================
 # DynamoDB
 # ==================================================
-module "dynamodb" {
+# ComfyUIインスタンスへの最終アクセス日時を管理
+module "dynamodb_comfyui_status" {
   source  = "../../modules/dynamodb"
   project = local.project
   env     = local.env
+  name = "comfyui-status"
+  billing_mode = "PAY_PER_REQUEST"
+  pk = {
+    name = "id"
+    type = "N"
+  }
 }
 
 # ==================================================

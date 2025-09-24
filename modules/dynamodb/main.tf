@@ -1,28 +1,17 @@
-resource "aws_dynamodb_table" "comfyui_instance" {
-  name = "${var.project}-${var.env}-comfyui-instance"
+resource "aws_dynamodb_table" "this" {
+  name = "${var.project}-${var.env}-${var.name}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key = "id"
-  attribute {
-    name = "id"
-    type = "N"
-  }
-  attribute {
-    name = "last_access_at"
-    type = "S"
-  }
-}
+  hash_key = var.pk.name
 
-resource "aws_dynamodb_table_item" "comfyui_instance" {
-  table_name = aws_dynamodb_table.comfyui_instance.name
-  hash_key = "id"
-  item = {
-    id = 0
-    last_access_at = timestamp()
+  attribute {
+    name = var.pk.name
+    type = var.pk.type
   }
 
-  lifecycle {
-    ignore_changes = [
-      item,
-    ]
+  dynamic "point_in_time_recovery" {
+    for_each = var.point_in_time_recovery ? [1] : []
+    content {
+      enabled = true
+    }
   }
 }
