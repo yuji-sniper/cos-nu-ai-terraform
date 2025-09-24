@@ -52,12 +52,14 @@ module "security_group_rule_ec2_comfyui" {
   security_group_id = module.security_group_ec2_comfyui.security_group_id
   ingress_from_sg = [
     {
+      description = "request from Lambda(ComfyUI BFF)"
       referenced_security_group_id = module.security_group_lambda_comfyui_bff.security_group_id
       from_port = 8188
       to_port = 8188
       ip_protocol = "tcp"
     },
     {
+      description = "request from Lambda(Stop ComfyUI)"
       referenced_security_group_id = module.security_group_lambda_stop_comfyui.security_group_id
       from_port = 8188
       to_port = 8188
@@ -71,6 +73,7 @@ module "security_group_rule_lambda_comfyui_bff" {
   security_group_id = module.security_group_lambda_comfyui_bff.security_group_id
   egress_to_sg = [
     {
+      description = "request to EC2(ComfyUI)"
       referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
       from_port = 8188
       to_port = 8188
@@ -79,12 +82,14 @@ module "security_group_rule_lambda_comfyui_bff" {
   ]
   egress_to_prefix_list = [
     {
+      description = "request to S3"
       prefix_list_id = data.aws_prefix_list.s3.id
       from_port = 443
       to_port = 443
       ip_protocol = "tcp"
     },
     {
+      description = "request to DynamoDB"
       prefix_list_id = data.aws_prefix_list.dynamodb.id
       from_port = 443
       to_port = 443
@@ -98,6 +103,7 @@ module "security_group_rule_lambda_stop_comfyui" {
   security_group_id = module.security_group_lambda_stop_comfyui.security_group_id
   egress_to_sg = [
     {
+      description = "request to EC2(ComfyUI)"
       referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
       from_port = 8188
       to_port = 8188
@@ -106,12 +112,14 @@ module "security_group_rule_lambda_stop_comfyui" {
   ]
   egress_to_prefix_list = [
     {
+      description = "request to S3"
       prefix_list_id = data.aws_prefix_list.s3.id
       from_port = 443
       to_port = 443
       ip_protocol = "tcp"
     },
     {
+      description = "request to DynamoDB"
       prefix_list_id = data.aws_prefix_list.dynamodb.id
       from_port = 443
       to_port = 443
@@ -189,7 +197,7 @@ module "vpc_endpoint_gateway" {
             Effect = "Allow"
             Action = "dynamodb:*"
             Resource = [
-              "arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb.comfyui_instance_table_name}"
+              "arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_status.table_name}"
             ]
           }
         ]
@@ -219,10 +227,13 @@ module "vpc_endpoint_interface" {
 # ==================================================
 # Secret Manager
 # ==================================================
-module "secretmanager" {
+# CDN Private Key（apply後にCLIで秘密鍵の値に更新）
+module "secret_manager_cdn_private_key" {
   source  = "../../modules/secret_manager"
   project = local.project
   env     = local.env
+  name = "cdn-private-key"
+  secret_string = "dummy"
 }
 
 # ==================================================
