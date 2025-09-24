@@ -6,8 +6,18 @@ variable "env" {
   type = string
 }
 
-variable "s3_private_bucket_id" {
+variable "name" {
   type = string
+}
+
+variable "managed_policy_arns" {
+  type = list(string)
+  default = []
+}
+
+variable "inline_policy_json_document" {
+  type = string
+  default = null
 }
 
 variable "ami" {
@@ -18,14 +28,24 @@ variable "instance_type" {
   type = string
 }
 
-variable "private_subnet_id" {
+variable "subnet_id" {
   type = string
 }
 
-variable "comfyui_security_group_ids" {
+variable "security_group_ids" {
   type = list(string)
 }
 
-variable "ebs_volume_size" {
-  type = number
+variable "associate_public_ip_address" {
+  type = bool
+}
+
+variable "root_block_device" {
+  type = object({
+    volume_size = number
+    volume_type = string
+    iops = number
+    encrypted = bool
+    delete_on_termination = bool
+  })
 }

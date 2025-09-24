@@ -1,3 +1,3 @@
-output "comfyui_instance_id" {
-  value = aws_instance.comfyui.id
+output "instance_id" {
+  value = aws_instance.this.id
 }
