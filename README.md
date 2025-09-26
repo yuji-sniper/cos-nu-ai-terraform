@@ -12,6 +12,11 @@ $ ln -sf ../../provider.tf provider.tf
 $ ln -sf ../../base_locals.tf base_locals.tf
 ```
 
+### 各種ファイル作成
+- backend.config
+- locals.tf
+- main.tf
+
 ### init
 ```sh
 $ terraform init -backend-config=backend.config
