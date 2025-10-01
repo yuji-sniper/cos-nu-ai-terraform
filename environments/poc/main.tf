@@ -1,9 +1,13 @@
 # ==================================================
-# デフォルトVPC
+# VPC
 # ==================================================
-module "default_vpc" {
-  source                = "../../modules/default_vpc"
-  availability_zone = local.availability_zones[0]
+module "vpc" {
+  source                           = "../../modules/vpc"
+  project                          = local.project
+  env                              = local.env
+  region                           = local.region
+  cidr_block                       = "10.1.0.0/16"
+  public_subnet_availability_zones = local.availability_zones
 }
 
 # ==================================================
@@ -14,13 +18,12 @@ module "security_group_ec2_comfyui" {
   project = local.project
   env     = local.env
   name    = "ec2-comfyui"
-  vpc_id  = module.default_vpc.vpc_id
+  vpc_id  = module.vpc.vpc_id
 }
 
 module "security_group_rule_ec2_comfyui" {
   source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_ec2_comfyui.security_group_id
-  allow_egress_to_all = true
   ingress_from_cidr_ipv4 = [
     {
       description = "request from internet"
@@ -40,35 +43,21 @@ module "security_group_rule_ec2_comfyui" {
 }
 
 # ==================================================
-# Key Pair
-# ==================================================
-module "key_pair_comfyui" {
-  source  = "../../modules/key_pair"
-  project = local.project
-  env     = local.env
-  name    = "comfyui"
-  public_key = var.comfyui_public_key
-}
-
-# ==================================================
-# EC2（ComfyUI AMIのソースインスタンス）
+# EC2
 # ==================================================
 module "ec2_comfyui" {
   source  = "../../modules/ec2"
   project = local.project
   env     = local.env
   name    = "comfyui"
-# Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7 (Ubuntu 22.04) 20250907
-  # ami                         = "ami-0365bff494b18bf93"
-# Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7 (Ubuntu 22.04) 
-  ami                         = "ami-05ee60afff9d0a480"
+  ami                         = "ami-0365bff494b18bf93"
   instance_type               = "g4dn.xlarge"
-  subnet_id                   = module.default_vpc.subnet_id
+  subnet_id                   = module.vpc.public_subnet_ids[0]
   security_group_ids          = [module.security_group_ec2_comfyui.security_group_id]
   associate_public_ip_address = true
-  key_name                    = module.key_pair_comfyui.name
+  key_name                    = "${local.project}-${local.env}-comfyui"
   root_block_device = {
-    volume_size           = 60
+    volume_size           = 40
     volume_type           = "gp3"
     iops                  = 3000
     encrypted             = true

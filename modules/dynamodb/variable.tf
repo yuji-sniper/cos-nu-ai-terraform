@@ -27,3 +27,8 @@ variable "point_in_time_recovery" {
   type    = bool
   default = false
 }
+
+variable "item" {
+  type    = string
+  default = null
+}

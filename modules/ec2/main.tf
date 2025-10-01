@@ -1,3 +1,6 @@
+# ==================================================
+# IAMロール
+# ==================================================
 data "aws_iam_policy_document" "ec2_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -36,6 +39,9 @@ resource "aws_iam_instance_profile" "this" {
   role = aws_iam_role.this.name
 }
 
+# ==================================================
+# EC2インスタンス
+# ==================================================
 resource "aws_instance" "this" {
   ami                         = var.ami
   instance_type               = var.instance_type
@@ -43,16 +49,24 @@ resource "aws_instance" "this" {
   vpc_security_group_ids      = var.security_group_ids
   iam_instance_profile        = aws_iam_instance_profile.this.name
   associate_public_ip_address = var.associate_public_ip_address
+  key_name                    = var.key_name
+
   metadata_options {
     http_tokens = "required"
   }
 
   root_block_device {
-    device_name           = "/dev/sda1"
     volume_size           = var.root_block_device.volume_size
     volume_type           = var.root_block_device.volume_type
     iops                  = var.root_block_device.iops
     encrypted             = var.root_block_device.encrypted
     delete_on_termination = var.root_block_device.delete_on_termination
+  }
+
+  user_data                   = var.user_data
+  user_data_replace_on_change = var.user_data_replace_on_change
+
+  tags = {
+    Name = "${var.project}-${var.env}-${var.name}"
   }
 }

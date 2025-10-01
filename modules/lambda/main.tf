@@ -84,6 +84,12 @@ resource "aws_lambda_function" "this" {
       security_group_ids = var.vpc_config.security_group_ids
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      environment
+    ]
+  }
 }
 
 # ==================================================

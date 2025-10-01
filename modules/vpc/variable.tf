@@ -14,6 +14,12 @@ variable "cidr_block" {
   type = string
 }
 
-variable "availability_zones" {
-  type = list(string)
+variable "private_subnet_availability_zones" {
+  type    = list(string)
+  default = []
+}
+
+variable "public_subnet_availability_zones" {
+  type    = list(string)
+  default = []
 }

@@ -15,3 +15,10 @@ resource "aws_dynamodb_table" "this" {
     }
   }
 }
+
+resource "aws_dynamodb_table_item" "this" {
+  count      = var.item != null ? 1 : 0
+  table_name = aws_dynamodb_table.this.name
+  hash_key   = aws_dynamodb_table.this.hash_key
+  item       = var.item
+}

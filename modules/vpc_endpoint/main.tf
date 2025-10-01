@@ -2,7 +2,7 @@
 # VPC Endpoint(Gateway)
 # ==============================
 resource "aws_vpc_endpoint" "gateway" {
-  count = length(var.gateway)
+  count             = length(var.gateway)
   vpc_id            = var.vpc_id
   service_name      = "com.amazonaws.${var.region}.${var.gateway[count.index].service_name}"
   vpc_endpoint_type = "Gateway"
@@ -14,7 +14,7 @@ resource "aws_vpc_endpoint" "gateway" {
 # VPC Endpoint(Interface)
 # ==============================
 resource "aws_vpc_endpoint" "interface" {
-  count = length(var.interface)
+  count               = length(var.interface)
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.${var.interface[count.index].service_name}"
   vpc_endpoint_type   = "Interface"

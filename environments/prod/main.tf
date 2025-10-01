@@ -9,12 +9,12 @@ data "aws_route53_zone" "root" {
 # VPC
 # ==================================================
 module "vpc" {
-  source             = "../../modules/vpc"
-  project            = local.project
-  env                = local.env
-  region             = local.region
-  cidr_block         = "10.0.0.0/16"
-  availability_zones = local.availability_zones
+  source                            = "../../modules/vpc"
+  project                           = local.project
+  env                               = local.env
+  region                            = local.region
+  cidr_block                        = "10.0.0.0/16"
+  private_subnet_availability_zones = local.availability_zones
 }
 
 # ==================================================
@@ -155,16 +155,22 @@ module "s3_private" {
 # DynamoDB
 # ==================================================
 # ComfyUIインスタンスへの最終アクセス日時を管理
-module "dynamodb_comfyui_status" {
+module "dynamodb_comfyui_instance_status" {
   source       = "../../modules/dynamodb"
   project      = local.project
   env          = local.env
-  name         = "comfyui-status"
+  name         = "comfyui-instance-status"
   billing_mode = "PAY_PER_REQUEST"
   pk = {
     name = "id"
     type = "N"
   }
+  item = <<ITEM
+{
+  "id": 0,
+  "last_access_at": ${timestamp()}
+}
+ITEM
 }
 
 # ==================================================
@@ -202,7 +208,7 @@ module "vpc_endpoint_gateway" {
             Effect = "Allow"
             Action = "dynamodb:*"
             Resource = [
-              "arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_status.table_name}"
+              "arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_instance_status.table_name}"
             ]
           }
         ]
@@ -272,6 +278,7 @@ module "route53_vercel_cname" {
 # ==================================================
 # EC2
 # ==================================================
+# ComfyUI（Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7 (Ubuntu 22.04) 20250907）
 module "ec2_comfyui" {
   source  = "../../modules/ec2"
   project = local.project
@@ -296,12 +303,14 @@ module "ec2_comfyui" {
   security_group_ids          = [module.security_group_ec2_comfyui.security_group_id]
   associate_public_ip_address = false
   root_block_device = {
-    volume_size           = 50
+    volume_size           = 20
     volume_type           = "gp3"
     iops                  = 3000
     encrypted             = true
     delete_on_termination = false
   }
+  user_data = templatefile("files/ec2/user_data/comfyui/user_data.yaml.tftpl")
+  user_data_replace_on_change = true
 }
 
 # ==================================================
@@ -324,7 +333,7 @@ module "lambda_comfyui_bff" {
         {
           Effect   = "Allow"
           Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
-          Resource = ["arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_status.table_name}"]
+          Resource = ["arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_instance_status.table_name}"]
         }
       ]
     }),
@@ -336,8 +345,9 @@ module "lambda_comfyui_bff" {
   handler      = "lambda_function.handler"
   runtime      = "nodejs22.x"
   environment = {
-    COMFYUI_INSTANCE_ID                 = module.ec2_comfyui.instance_id
-    COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = module.dynamodb_comfyui_status.table_name
+    COMFYUI_INSTANCE_ID                         = module.ec2_comfyui.instance_id
+    COMFYUI_INSTANCE_STATUS_DYNAMODB_TABLE_NAME = module.dynamodb_comfyui_instance_status.table_name
+    COMFYUI_INSTANCE_STATUS_DYNAMODB_ITEM_ID    = 0
   }
   vpc_config = {
     subnet_ids         = module.vpc.private_subnet_ids
@@ -371,8 +381,8 @@ module "lambda_stop_comfyui" {
         },
         {
           Effect   = "Allow"
-          Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
-          Resource = ["arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_status.table_name}"]
+          Action   = ["dynamodb:GetItem"]
+          Resource = ["arn:aws:dynamodb:${local.region}:${data.aws_caller_identity.current.account_id}:table/${module.dynamodb_comfyui_instance_status.table_name}"]
         }
       ]
     }),
@@ -384,8 +394,11 @@ module "lambda_stop_comfyui" {
   handler      = "lambda_function.handler"
   runtime      = "nodejs22.x"
   environment = {
-    COMFYUI_INSTANCE_ID                 = module.ec2_comfyui.instance_id
-    COMFYUI_STATUS_DYNAMO_DB_TABLE_NAME = module.dynamodb_comfyui_status.table_name
+    COMFYUI_INSTANCE_ID                         = module.ec2_comfyui.instance_id
+    COMFYUI_INSTANCE_STATUS_DYNAMODB_TABLE_NAME = module.dynamodb_comfyui_instance_status.table_name
+    COMFYUI_INSTANCE_STATUS_DYNAMODB_ITEM_ID    = 0
+    INSTANCE_READY_TIMEOUT_MINUTES              = 5
+    IDLE_THRESHOLD_MINUTES                      = 10
   }
   vpc_config = {
     subnet_ids         = module.vpc.private_subnet_ids

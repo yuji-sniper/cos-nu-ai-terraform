@@ -40,6 +40,11 @@ variable "associate_public_ip_address" {
   type = bool
 }
 
+variable "key_name" {
+  type    = string
+  default = null
+}
+
 variable "root_block_device" {
   type = object({
     volume_size           = number
@@ -48,4 +53,14 @@ variable "root_block_device" {
     encrypted             = bool
     delete_on_termination = bool
   })
+}
+
+variable "user_data" {
+  type    = string
+  default = null
+}
+
+variable "user_data_replace_on_change" {
+  type    = bool
+  default = false
 }

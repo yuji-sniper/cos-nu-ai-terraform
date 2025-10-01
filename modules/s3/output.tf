@@ -1,7 +1,7 @@
-output "private_bucket_id" {
-  value = aws_s3_bucket.private.id
+output "bucket_id" {
+  value = aws_s3_bucket.this.id
 }
 
-output "private_bucket_domain_name" {
-  value = aws_s3_bucket.private.bucket_regional_domain_name
+output "bucket_domain_name" {
+  value = aws_s3_bucket.this.bucket_regional_domain_name
 }
