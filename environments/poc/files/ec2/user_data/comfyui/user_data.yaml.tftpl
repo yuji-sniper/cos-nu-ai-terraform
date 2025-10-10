@@ -1,3 +1,4 @@
+#cloud-config
 package_update: false
 package_upgrade: false
 
@@ -15,9 +16,9 @@ write_files:
       Type=simple
       User=comfyui
       Group=comfyui
-      WorkingDirectory=/opt/ComfyUI
+      WorkingDirectory=/home/ubuntu/ComfyUI
       ExecStartPre=/usr/bin/nvidia-smi
-      ExecStart=/usr/bin/python3 main.py --listen
+      ExecStart=python3 main.py --listen
       Restart=on-failure
       RestartSec=3
       TimeoutStartSec=180
@@ -28,6 +29,8 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
+  - [ bash, -lc, "id -u comfyui >/dev/null 2>&1 || useradd -m -s /bin/bash comfyui" ]
+  - [ bash, -lc, "chown -R comfyui:comfyui /home/ubuntu/ComfyUI" ]
   - [ bash, -lc, "systemctl daemon-reload" ]
   - [ bash, -lc, "systemctl enable --now comfyui" ]
 

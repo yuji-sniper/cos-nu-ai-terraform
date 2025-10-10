@@ -14,7 +14,6 @@ resource "aws_vpc_security_group_egress_rule" "egress_to_prefix_list" {
   from_port         = var.egress_to_prefix_list[count.index].from_port
   to_port           = var.egress_to_prefix_list[count.index].to_port
   ip_protocol       = var.egress_to_prefix_list[count.index].ip_protocol
-
 }
 
 resource "aws_vpc_security_group_egress_rule" "egress_to_sg" {

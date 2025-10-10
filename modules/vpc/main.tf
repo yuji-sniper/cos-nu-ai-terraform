@@ -5,6 +5,9 @@ resource "aws_vpc" "main" {
   cidr_block           = var.cidr_block
   enable_dns_hostnames = true
   enable_dns_support   = true
+  tags = {
+    Name = "${var.project}-${var.env}"
+  }
 }
 
 # ==============================
@@ -19,11 +22,17 @@ resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
   availability_zone = var.private_subnet_availability_zones[count.index]
+  tags = {
+    Name = "${var.project}-${var.env}-private-${var.private_subnet_availability_zones[count.index]}"
+  }
 }
 
 resource "aws_route_table" "private" {
   count  = local.private_count
   vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "${var.project}-${var.env}-private"
+  }
 }
 
 resource "aws_route_table_association" "private" {
@@ -42,6 +51,9 @@ locals {
 resource "aws_internet_gateway" "this" {
   count  = local.public_count != 0 ? 1 : 0
   vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "${var.project}-${var.env}-public"
+  }
 }
 
 resource "aws_subnet" "public" {
@@ -49,11 +61,17 @@ resource "aws_subnet" "public" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, local.private_count + count.index)
   availability_zone = var.public_subnet_availability_zones[count.index]
+  tags = {
+    Name = "${var.project}-${var.env}-public-${var.public_subnet_availability_zones[count.index]}"
+  }
 }
 
 resource "aws_route_table" "public" {
   count  = local.public_count
   vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "${var.project}-${var.env}-public"
+  }
 }
 
 resource "aws_route" "public_default" {

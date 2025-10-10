@@ -1,80 +1,11 @@
 # ==================================================
-# デフォルトVPC
+# SSM Parameter
 # ==================================================
-module "default_vpc" {
-  source                = "../../modules/default_vpc"
-  availability_zone = local.availability_zones[0]
-}
-
-# ==================================================
-# Security Group
-# ==================================================
-module "security_group_ec2_comfyui" {
-  source  = "../../modules/security_group"
+module "ssm_parameter_civitai_api_key" {
+  source  = "../../modules/ssm_parameter"
   project = local.project
   env     = local.env
-  name    = "ec2-comfyui"
-  vpc_id  = module.default_vpc.vpc_id
-}
-
-module "security_group_rule_ec2_comfyui" {
-  source            = "../../modules/security_group_rule"
-  security_group_id = module.security_group_ec2_comfyui.security_group_id
-  allow_egress_to_all = true
-  ingress_from_cidr_ipv4 = [
-    {
-      description = "request from internet"
-      cidr_ipv4 = "0.0.0.0/0"
-      from_port   = 8188
-      to_port     = 8188
-      ip_protocol = "tcp"
-    },
-    {
-      description = "request from ssh"
-      cidr_ipv4 = "0.0.0.0/0"
-      from_port   = 22
-      to_port     = 22
-      ip_protocol = "tcp"
-    }
-  ]
-}
-
-# ==================================================
-# Key Pair
-# ==================================================
-module "key_pair_comfyui" {
-  source  = "../../modules/key_pair"
-  project = local.project
-  env     = local.env
-  name    = "comfyui"
-  public_key = var.comfyui_public_key
-}
-
-# ==================================================
-# EC2（ComfyUI AMIのソースインスタンス）
-# ==================================================
-module "ec2_comfyui" {
-  source  = "../../modules/ec2"
-  project = local.project
-  env     = local.env
-  name    = "comfyui"
-# Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7 (Ubuntu 22.04) 20250907
-  # ami                         = "ami-0365bff494b18bf93"
-# Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7 (Ubuntu 22.04) 
-  ami                         = "ami-05ee60afff9d0a480"
-  instance_type               = "g4dn.xlarge"
-  subnet_id                   = module.default_vpc.subnet_id
-  security_group_ids          = [module.security_group_ec2_comfyui.security_group_id]
-  associate_public_ip_address = true
-  key_name                    = module.key_pair_comfyui.name
-  root_block_device = {
-    volume_size           = 60
-    volume_type           = "gp3"
-    iops                  = 3000
-    encrypted             = true
-    delete_on_termination = false
-  }
-  # TODO: 手動で設置でもいいかもしれない
-  # user_data = templatefile("files/ec2/user_data/comfyui/user_data.yaml.tftpl")
-  # user_data_replace_on_change = true
+  name    = "civitai-api-key"
+  type    = "String"
+  value   = "dummy"
 }

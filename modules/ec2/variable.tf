@@ -55,7 +55,7 @@ variable "root_block_device" {
   })
 }
 
-variable "user_data" {
+variable "user_data_base64" {
   type    = string
   default = null
 }

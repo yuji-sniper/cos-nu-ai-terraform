@@ -63,7 +63,7 @@ resource "aws_instance" "this" {
     delete_on_termination = var.root_block_device.delete_on_termination
   }
 
-  user_data                   = var.user_data
+  user_data_base64 = var.user_data_base64
   user_data_replace_on_change = var.user_data_replace_on_change
 
   tags = {

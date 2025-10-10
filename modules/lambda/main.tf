@@ -29,16 +29,23 @@ resource "aws_iam_role_policy_attachment" "basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "managed" {
-  for_each   = toset(var.managed_policy_arns)
+# VPC内にLambdaを配置する場合に必要
+resource "aws_iam_role_policy_attachment" "vpc_access" {
+  count      = var.vpc_config != null ? 1 : 0
   role       = aws_iam_role.exec.name
-  policy_arn = each.value
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "managed" {
+  count      = length(var.managed_policy_arns)
+  role       = aws_iam_role.exec.name
+  policy_arn = var.managed_policy_arns[count.index]
 }
 
 resource "aws_iam_role_policy" "inline" {
-  for_each = toset(var.inline_policy_json_documents)
-  role     = aws_iam_role.exec.name
-  policy   = each.value
+  count  = length(var.inline_policy_json_documents)
+  role   = aws_iam_role.exec.name
+  policy = var.inline_policy_json_documents[count.index]
 }
 
 # ==================================================
@@ -90,6 +97,14 @@ resource "aws_lambda_function" "this" {
       environment
     ]
   }
+
+  depends_on = [
+    aws_s3_object.this,
+    aws_iam_role_policy_attachment.basic,
+    aws_iam_role_policy_attachment.vpc_access,
+    aws_iam_role_policy_attachment.managed,
+    aws_iam_role_policy.inline
+  ]
 }
 
 # ==================================================
@@ -111,34 +126,4 @@ resource "aws_lambda_function_url" "this" {
       max_age           = var.function_url_cors.max_age
     }
   }
-}
-
-# ==================================================
-# 関数URL呼び出し用のIAMユーザー（authorization_typeがAWS_IAMの場合のみ）
-# ==================================================
-locals {
-  is_fn_url_auth_type_aws_iam = var.enable_function_url && var.function_url_auth_type == "AWS_IAM"
-}
-
-resource "aws_iam_user" "function_url_invoke" {
-  count = local.is_fn_url_auth_type_aws_iam ? 1 : 0
-  name  = "${var.project}-${var.env}-${var.name}-function-url-invoke"
-}
-
-data "aws_iam_policy_document" "function_url_invoke" {
-  statement {
-    actions   = ["lambda:InvokeFunctionUrl"]
-    resources = [aws_lambda_function.this.arn]
-    condition {
-      test     = "StringEquals"
-      variable = "lambda:FunctionUrlAuthType"
-      values   = ["AWS_IAM"]
-    }
-  }
-}
-
-resource "aws_iam_user_policy" "function_url_invoke" {
-  count  = local.is_fn_url_auth_type_aws_iam ? 1 : 0
-  user   = aws_iam_user.function_url_invoke[0].name
-  policy = data.aws_iam_policy_document.function_url_invoke.json
 }
