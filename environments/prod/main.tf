@@ -15,6 +15,20 @@ module "vpc" {
   region                            = local.region
   cidr_block                        = "10.0.0.0/16"
   private_subnet_availability_zones = local.availability_zones
+  # TODO: EC2でComfyUI関連のインストールが完了したら削除
+  public_subnet_availability_zones = local.availability_zones
+}
+
+# ==================================================
+# NAT
+# ==================================================
+# TODO: EC2でComfyUI関連のインストールが完了したら削除
+module "nat" {
+  source                 = "../../modules/nat"
+  project                = local.project
+  env                    = local.env
+  public_subnet_id       = module.vpc.public_subnet_ids[0]
+  private_route_table_id = module.vpc.private_route_table_ids[0]
 }
 
 # ==================================================
@@ -55,6 +69,8 @@ module "security_group_lambda_stop_comfyui" {
 module "security_group_rule_ec2_comfyui" {
   source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_ec2_comfyui.security_group_id
+  # TODO: EC2でComfyUI関連のインストールが完了したら削除
+  allow_egress_to_all = true
   ingress_from_sg = [
     {
       description                  = "request from Lambda(ComfyUI BFF)"
@@ -303,14 +319,14 @@ module "ec2_comfyui" {
   security_group_ids          = [module.security_group_ec2_comfyui.security_group_id]
   associate_public_ip_address = false
   root_block_device = {
-    volume_size           = 20
+    volume_size           = 50
     volume_type           = "gp3"
     iops                  = 3000
     encrypted             = true
-    delete_on_termination = false
+    delete_on_termination = true
   }
-  user_data = templatefile("files/ec2/user_data/comfyui/user_data.yaml.tftpl")
-  user_data_replace_on_change = true
+  # user_data = templatefile("files/ec2/user_data/comfyui/user_data.yaml.tftpl")
+  # user_data_replace_on_change = true
 }
 
 # ==================================================

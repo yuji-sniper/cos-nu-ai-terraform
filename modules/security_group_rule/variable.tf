@@ -3,7 +3,7 @@ variable "security_group_id" {
 }
 
 variable "allow_egress_to_all" {
-  type = bool
+  type    = bool
   default = false
 }
 
@@ -31,7 +31,7 @@ variable "egress_to_sg" {
 variable "ingress_from_cidr_ipv4" {
   type = list(object({
     description = string
-    cidr_ipv4 = string
+    cidr_ipv4   = string
     from_port   = number
     to_port     = number
     ip_protocol = string

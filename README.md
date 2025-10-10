@@ -2,7 +2,7 @@
 
 ### 各環境のディレクトリに移動
 ```sh
-$ cd {環境ディレクトリ}
+$ cd environments/{環境}
 ```
 
 ### 各環境のディレクトリで共通設定ファイルのシンボリックリンクを貼る
@@ -31,13 +31,13 @@ $ terraform apply
 ## Tips
 
 ### 秘密鍵 Secret Manager アップロード
-バイナリにしてアップロード。
+バイナリにしてアップロード
 ```sh
 $ aws secretsmanager create-secret \
     --name {キー名} \
     --secret-binary file://~/.ssh/private.pem
 ```
-取り出し。
+取り出し
 ```sh
 $ aws secretsmanager get-secret-value \
     --secret-id {キー名} \

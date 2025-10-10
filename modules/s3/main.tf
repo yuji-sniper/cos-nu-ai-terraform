@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "this" {
-  bucket = "${var.project}-${var.env}-${var.name}"
+  bucket        = "${var.project}-${var.env}-${var.name}"
   force_destroy = var.force_destroy
 }
 
