@@ -126,10 +126,10 @@ module "cloudfront_s3_media" {
 # VPC
 # ==================================================
 module "vpc_main" {
-  source = "../../modules/vpc"
-  name   = "main"
-  region = local.region
-  cidr_block = "10.0.0.0/16"
+  source                            = "../../modules/vpc"
+  name                              = "main"
+  region                            = local.region
+  cidr_block                        = "10.0.0.0/16"
   private_subnet_availability_zones = local.availability_zones
   # TODO: EC2でComfyUIのインストールが完了したら削除
   # public_subnet_availability_zones = local.availability_zones
@@ -179,79 +179,79 @@ module "security_group_vpc_endpoint_ssm_main" {
 
 # Security Group Rule
 module "security_group_rule_ec2_comfyui" {
-  source = "../../modules/security_group_rule"
+  source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_ec2_comfyui.security_group_id
   # TODO: EC2でComfyUI関連のインストールが完了したら削除
   allow_egress_to_all = true
   egress_to_sg = [
     {
-      description = "request to VPC Endpoint(SSM)"
+      description                  = "request to VPC Endpoint(SSM)"
       referenced_security_group_id = module.security_group_vpc_endpoint_ssm_main.security_group_id
-      from_port = 443
-      to_port = 443
-      ip_protocol = "tcp"
+      from_port                    = 443
+      to_port                      = 443
+      ip_protocol                  = "tcp"
     }
   ]
   egress_to_prefix_list = [
     {
-      description = "request to VPC Endpoint(S3)"
+      description    = "request to VPC Endpoint(S3)"
       prefix_list_id = data.aws_prefix_list.s3.id
-      from_port = 443
-      to_port = 443
-      ip_protocol = "tcp"
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
     }
   ]
   ingress_from_sg = [
     {
-      description = "request from Lambda(Generation Job)"
+      description                  = "request from Lambda(Generation Job)"
       referenced_security_group_id = module.security_group_lambda_generation_job.security_group_id
-      from_port = 8188
-      to_port = 8188
-      ip_protocol = "tcp"
+      from_port                    = 8188
+      to_port                      = 8188
+      ip_protocol                  = "tcp"
     }
   ]
 }
 
 module "security_group_rule_lambda_generation_job" {
-  source = "../../modules/security_group_rule"
+  source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_lambda_generation_job.security_group_id
   egress_to_sg = [
     {
-      description = "request to EC2(ComfyUI)"
+      description                  = "request to EC2(ComfyUI)"
       referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
-      from_port = 8188
-      to_port = 8188
-      ip_protocol = "tcp"
+      from_port                    = 8188
+      to_port                      = 8188
+      ip_protocol                  = "tcp"
     }
   ]
   egress_to_prefix_list = [
     {
-      description = "request to S3"
+      description    = "request to S3"
       prefix_list_id = data.aws_prefix_list.s3.id
-      from_port = 443
-      to_port = 443
-      ip_protocol = "tcp"
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
     },
     {
-      description = "request to DynamoDB"
+      description    = "request to DynamoDB"
       prefix_list_id = data.aws_prefix_list.dynamodb.id
-      from_port = 443
-      to_port = 443
-      ip_protocol = "tcp"
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
     }
   ]
 }
 
 module "security_group_rule_vpc_endpoint_ssm_main" {
-  source = "../../modules/security_group_rule"
+  source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_vpc_endpoint_ssm_main.security_group_id
   ingress_from_sg = [
     {
-      description = "request from EC2(ComfyUI)"
+      description                  = "request from EC2(ComfyUI)"
       referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
-      from_port = 443
-      to_port = 443
-      ip_protocol = "tcp"
+      from_port                    = 443
+      to_port                      = 443
+      ip_protocol                  = "tcp"
     }
   ]
 }
@@ -260,21 +260,21 @@ module "security_group_rule_vpc_endpoint_ssm_main" {
 # VPC Endpoint
 # ==================================================
 module "vpc_endpoint_main" {
-  source = "../../modules/vpc_endpoint"
-  region = local.region
-  vpc_id = module.vpc_main.vpc_id
+  source   = "../../modules/vpc_endpoint"
+  region   = local.region
+  vpc_id   = module.vpc_main.vpc_id
   vpc_name = module.vpc_main.vpc_name
   gateway = [
     {
-      service_name = "com.amazonaws.${local.region}.s3"
+      service_name    = "com.amazonaws.${local.region}.s3"
       route_table_ids = module.vpc_main.private_route_table_ids
       policy = jsonencode({
         Version = "2012-10-17"
         Statement = [
           {
-            Effect = "Allow"
+            Effect    = "Allow"
             Principal = "*"
-            Action = "s3:*"
+            Action    = "s3:*"
             Resource = [
               module.s3_private.bucket_arn,
               "${module.s3_private.bucket_arn}/*"
@@ -284,15 +284,15 @@ module "vpc_endpoint_main" {
       })
     },
     {
-      service_name = "com.amazonaws.${local.region}.dynamodb"
+      service_name    = "com.amazonaws.${local.region}.dynamodb"
       route_table_ids = module.vpc_main.private_route_table_ids
       policy = jsonencode({
         Version = "2012-10-17"
         Statement = [
           {
-            Effect = "Allow"
+            Effect    = "Allow"
             Principal = "*"
-            Action = "dynamodb:*"
+            Action    = "dynamodb:*"
             Resource = [
               module.dynamodb_generation_job.arn
             ]
@@ -303,18 +303,18 @@ module "vpc_endpoint_main" {
   ]
   interface = [
     {
-      service_name = "com.amazonaws.${local.region}.ssm"
-      subnet_ids = module.vpc_main.private_subnet_ids
+      service_name       = "com.amazonaws.${local.region}.ssm"
+      subnet_ids         = module.vpc_main.private_subnet_ids
       security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
     },
     {
-      service_name = "com.amazonaws.${local.region}.ssmmessages"
-      subnet_ids = module.vpc_main.private_subnet_ids
+      service_name       = "com.amazonaws.${local.region}.ssmmessages"
+      subnet_ids         = module.vpc_main.private_subnet_ids
       security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
     },
     {
-      service_name = "com.amazonaws.${local.region}.ec2messages"
-      subnet_ids = module.vpc_main.private_subnet_ids
+      service_name       = "com.amazonaws.${local.region}.ec2messages"
+      subnet_ids         = module.vpc_main.private_subnet_ids
       security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
     }
   ]
