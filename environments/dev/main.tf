@@ -4,6 +4,7 @@ data "aws_region" "apne1" {
   provider = aws.apne1
 }
 
+
 # ==================================================
 # SSM Parameter
 # ==================================================
@@ -32,36 +33,6 @@ module "ssm_parameter_supabase_service_role_key" {
   name   = "/supabase/service-role-key"
   type   = "SecureString"
   value  = "dummy"
-}
-
-# ==================================================
-# Route53
-# ==================================================
-module "route53_zone" {
-  source = "../../modules/route53_zone"
-  name   = local.domain
-}
-
-module "route53_record_app_a" {
-  source      = "../../modules/route53_record"
-  zone_id     = module.route53_zone.zone_id
-  domain_name = local.domain
-  type        = "A"
-  ttl         = 900
-  records = [
-    var.vercel_apex_a_record_ip
-  ]
-}
-
-module "route53_record_admin_cname" {
-  source      = "../../modules/route53_record"
-  zone_id     = module.route53_zone.zone_id
-  domain_name = "admin.${local.domain}"
-  type        = "CNAME"
-  ttl         = 900
-  records = [
-    var.vercel_admin_cname_target
-  ]
 }
 
 # ==================================================
@@ -106,6 +77,234 @@ module "dynamodb_generation_job" {
   ttl = {
     attribute_name = "ttl"
   }
+}
+
+# ==================================================
+# VPC
+# ==================================================
+module "vpc_main" {
+  source = "../../modules/vpc"
+  name   = "main"
+  region = local.region
+  cidr_block = "10.0.0.0/16"
+  private_subnet_availability_zones = local.availability_zones
+  # TODO: EC2でComfyUIのインストールが完了したら削除
+  # public_subnet_availability_zones = local.availability_zones
+}
+
+# ==================================================
+# NAT
+# ==================================================
+# TODO: EC2でComfyUIのインストールが完了したら削除
+# module "nat_main" {
+#   source = "../../modules/nat"
+#   name   = "main"
+#   public_subnet_id = module.vpc_main.public_subnet_ids[0]
+#   private_route_table_id = module.vpc_main.private_route_table_ids[0]
+# }
+
+# ==================================================
+# Security Group
+# ==================================================
+# Prefix List
+data "aws_prefix_list" "s3" {
+  name = "com.amazonaws.${local.region}.s3"
+}
+
+data "aws_prefix_list" "dynamodb" {
+  name = "com.amazonaws.${local.region}.dynamodb"
+}
+
+# Security Group
+module "security_group_ec2_comfyui" {
+  source = "../../modules/security_group"
+  name   = "ec2-comfyui"
+  vpc_id = module.vpc_main.vpc_id
+}
+
+module "security_group_lambda_generation_job" {
+  source = "../../modules/security_group"
+  name   = "lambda-generation-job"
+  vpc_id = module.vpc_main.vpc_id
+}
+
+module "security_group_vpc_endpoint_ssm_main" {
+  source = "../../modules/security_group"
+  name   = "vpc-endpoint-ssm-main"
+  vpc_id = module.vpc_main.vpc_id
+}
+
+# Security Group Rule
+module "security_group_rule_ec2_comfyui" {
+  source = "../../modules/security_group_rule"
+  security_group_id = module.security_group_ec2_comfyui.security_group_id
+  # TODO: EC2でComfyUI関連のインストールが完了したら削除
+  allow_egress_to_all = true
+  egress_to_sg = [
+    {
+      description = "request to VPC Endpoint(SSM)"
+      referenced_security_group_id = module.security_group_vpc_endpoint_ssm_main.security_group_id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    }
+  ]
+  egress_to_prefix_list = [
+    {
+      description = "request to VPC Endpoint(S3)"
+      prefix_list_id = data.aws_prefix_list.s3.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    }
+  ]
+  ingress_from_sg = [
+    {
+      description = "request from Lambda(Generation Job)"
+      referenced_security_group_id = module.security_group_lambda_generation_job.security_group_id
+      from_port = 8188
+      to_port = 8188
+      ip_protocol = "tcp"
+    }
+  ]
+}
+
+module "security_group_rule_lambda_generation_job" {
+  source = "../../modules/security_group_rule"
+  security_group_id = module.security_group_lambda_generation_job.security_group_id
+  egress_to_sg = [
+    {
+      description = "request to EC2(ComfyUI)"
+      referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
+      from_port = 8188
+      to_port = 8188
+      ip_protocol = "tcp"
+    }
+  ]
+  egress_to_prefix_list = [
+    {
+      description = "request to S3"
+      prefix_list_id = data.aws_prefix_list.s3.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    },
+    {
+      description = "request to DynamoDB"
+      prefix_list_id = data.aws_prefix_list.dynamodb.id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    }
+  ]
+}
+
+module "security_group_rule_vpc_endpoint_ssm_main" {
+  source = "../../modules/security_group_rule"
+  security_group_id = module.security_group_vpc_endpoint_ssm_main.security_group_id
+  ingress_from_sg = [
+    {
+      description = "request from EC2(ComfyUI)"
+      referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
+      from_port = 443
+      to_port = 443
+      ip_protocol = "tcp"
+    }
+  ]
+}
+
+# ==================================================
+# VPC Endpoint
+# ==================================================
+module "vpc_endpoint_main" {
+  source = "../../modules/vpc_endpoint"
+  region = local.region
+  vpc_id = module.vpc_main.vpc_id
+  vpc_name = module.vpc_main.vpc_name
+  gateway = [
+    {
+      service_name = "com.amazonaws.${local.region}.s3"
+      route_table_ids = module.vpc_main.private_route_table_ids
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Principal = "*"
+            Action = "s3:*"
+            Resource = [
+              module.s3_private.bucket_arn,
+              "${module.s3_private.bucket_arn}/*"
+            ]
+          }
+        ]
+      })
+    },
+    {
+      service_name = "com.amazonaws.${local.region}.dynamodb"
+      route_table_ids = module.vpc_main.private_route_table_ids
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Principal = "*"
+            Action = "dynamodb:*"
+            Resource = [
+              module.dynamodb_generation_job.arn
+            ]
+          }
+        ]
+      })
+    }
+  ]
+  interface = [
+    {
+      service_name = "com.amazonaws.${local.region}.ssm"
+      subnet_ids = module.vpc_main.private_subnet_ids
+      security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
+    },
+    {
+      service_name = "com.amazonaws.${local.region}.ssmmessages"
+      subnet_ids = module.vpc_main.private_subnet_ids
+      security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
+    },
+    {
+      service_name = "com.amazonaws.${local.region}.ec2messages"
+      subnet_ids = module.vpc_main.private_subnet_ids
+      security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
+    }
+  ]
+}
+
+# ==================================================
+# Route53
+# ==================================================
+module "route53_zone" {
+  source = "../../modules/route53_zone"
+  name   = local.domain
+}
+
+module "route53_record_app_a" {
+  source      = "../../modules/route53_record"
+  zone_id     = module.route53_zone.zone_id
+  domain_name = local.domain
+  type        = "A"
+  ttl         = 900
+  records = [
+    var.vercel_apex_a_record_ip
+  ]
+}
+
+module "route53_record_admin_cname" {
+  source      = "../../modules/route53_record"
+  zone_id     = module.route53_zone.zone_id
+  domain_name = "admin.${local.domain}"
+  type        = "CNAME"
+  ttl         = 900
+  records = [
+    var.vercel_admin_cname_target
+  ]
 }
 
 # ==================================================
@@ -163,7 +362,7 @@ module "lambda_layer_uuidv7_nodejs" {
 # ==================================================
 # Lambda
 # ==================================================
-# 生成ジョブ
+# 生成ジョブ（VPC内）
 module "lambda_generation_job" {
   source       = "../../modules/lambda"
   name         = "generation-job"
@@ -176,8 +375,10 @@ module "lambda_generation_job" {
   output_path  = "${path.module}/outputs/lambda/generation_job.zip"
   s3_bucket_id = module.s3_lambda_functions.bucket_id
   s3_key       = "generation-job/index.zip"
-  # TODO: VPC内に配置する
-  # vpc_config = {}
+  vpc_config = {
+    subnet_ids         = module.vpc_main.private_subnet_ids
+    security_group_ids = [module.security_group_lambda_generation_job.security_group_id]
+  }
   environment = {
     DYNAMODB_GENERATION_JOB_TABLE_NAME = module.dynamodb_generation_job.table_name
     DYNAMODB_GENERATION_JOB_REGION     = local.region
