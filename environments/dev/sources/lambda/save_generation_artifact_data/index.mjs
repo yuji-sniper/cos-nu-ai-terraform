@@ -62,7 +62,7 @@ export const handler = async (event) => {
     file_path: key
   })
   if (artifactError) {
-    // 外部キー違反の場合はworkflow_jobsレコードが削除されているとみなしエラーにはしない
+    // 外部キー違反の場合はworkflow_jobsレコードが削除されているとみなし、オブジェクトを削除
     const isFkViolation =
       artifactError.code === ERROR_CODE_FOREIGN_KEY_VIOLATION &&
       artifactError.constraint === WORKFLOW_JOB_ID_FOREIGN_KEY
