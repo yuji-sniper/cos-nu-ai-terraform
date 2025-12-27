@@ -8,6 +8,9 @@ resource "aws_vpc_endpoint" "gateway" {
   vpc_endpoint_type = "Gateway"
   route_table_ids   = var.gateway[count.index].route_table_ids
   policy            = var.gateway[count.index].policy
+  tags = {
+    Name = "${var.vpc_name}-${element(split(".", var.gateway[count.index].service_name), -1)}-gateway"
+  }
 }
 
 # ==============================
@@ -21,4 +24,7 @@ resource "aws_vpc_endpoint" "interface" {
   subnet_ids          = var.interface[count.index].subnet_ids
   security_group_ids  = var.interface[count.index].security_group_ids
   private_dns_enabled = true
+  tags = {
+    Name = "${var.vpc_name}-${element(split(".", var.interface[count.index].service_name), -1)}-interface"
+  }
 }
