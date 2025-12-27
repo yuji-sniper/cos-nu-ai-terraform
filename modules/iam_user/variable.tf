@@ -1,13 +1,10 @@
-variable "project" {
-  type = string
-}
-
-variable "env" {
-  type = string
-}
-
 variable "name" {
   type = string
+}
+
+variable "pgp_key" {
+  type = string
+  default = null
 }
 
 variable "managed_policy_arns" {

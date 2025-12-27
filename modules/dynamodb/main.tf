@@ -1,11 +1,19 @@
 resource "aws_dynamodb_table" "this" {
-  name         = "${var.project}-${var.env}-${var.name}"
+  name         = var.name
   billing_mode = var.billing_mode
   hash_key     = var.pk.name
 
   attribute {
     name = var.pk.name
     type = var.pk.type
+  }
+
+  dynamic "ttl" {
+    for_each = var.ttl != null ? [1] : []
+    content {
+      attribute_name = var.ttl.attribute_name
+      enabled        = true
+    }
   }
 
   dynamic "point_in_time_recovery" {

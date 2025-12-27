@@ -2,7 +2,7 @@
 # CloudWatchロググループ
 # ==================================================
 resource "aws_cloudwatch_log_group" "this" {
-  name              = "/aws/lambda/${var.project}-${var.env}-${var.name}"
+  name              = "/lambda/${var.name}"
   retention_in_days = 30
 }
 
@@ -20,7 +20,7 @@ data "aws_iam_policy_document" "lambda_assume" {
 }
 
 resource "aws_iam_role" "exec" {
-  name               = "${var.project}-${var.env}-${var.name}-lambda-exec"
+  name               = "${var.name}-lambda-assume"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
@@ -44,8 +44,9 @@ resource "aws_iam_role_policy_attachment" "managed" {
 
 resource "aws_iam_role_policy" "inline" {
   count  = length(var.inline_policy_json_documents)
+  name   = var.inline_policy_json_documents[count.index].name
+  policy = var.inline_policy_json_documents[count.index].document
   role   = aws_iam_role.exec.name
-  policy = var.inline_policy_json_documents[count.index]
 }
 
 # ==================================================
@@ -65,7 +66,7 @@ resource "aws_s3_object" "this" {
 }
 
 resource "aws_lambda_function" "this" {
-  function_name    = "${var.project}-${var.env}-${var.name}"
+  function_name    = var.name
   role             = aws_iam_role.exec.arn
   handler          = var.handler
   runtime          = var.runtime
@@ -74,6 +75,10 @@ resource "aws_lambda_function" "this" {
   source_code_hash = filebase64sha256(data.archive_file.this.output_path)
   timeout          = var.timeout
   memory_size      = var.memory_size
+  publish          = var.publish
+  reserved_concurrent_executions = var.reserved_concurrent_executions
+
+  layers = var.layer_arns
 
   logging_config {
     log_group  = aws_cloudwatch_log_group.this.name
@@ -105,6 +110,35 @@ resource "aws_lambda_function" "this" {
     aws_iam_role_policy_attachment.managed,
     aws_iam_role_policy.inline
   ]
+}
+
+# ==================================================
+# Lambda permission
+# ==================================================
+resource "aws_lambda_permission" "this" {
+  count = var.permission != null ? 1 : 0
+  statement_id  = var.permission.statement_id
+  action        = var.permission.action
+  function_name = aws_lambda_function.this.function_name
+  principal     = var.permission.principal
+  source_arn    = var.permission.source_arn
+}
+
+# ==================================================
+# Lambda event source mapping
+# ==================================================
+resource "aws_lambda_event_source_mapping" "this" {
+  count              = var.event_source_mapping != null ? 1 : 0
+  event_source_arn   = var.event_source_mapping.event_source_arn
+  function_name      = aws_lambda_function.this.function_name
+  batch_size         = var.event_source_mapping.batch_size
+
+  dynamic "scaling_config" {
+    for_each = var.event_source_mapping.scaling_config != null ? [1] : []
+    content {
+      maximum_concurrency = var.event_source_mapping.scaling_config.maximum_concurrency
+    }
+  }
 }
 
 # ==================================================

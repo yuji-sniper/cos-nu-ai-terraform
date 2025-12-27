@@ -1,11 +1,3 @@
-variable "project" {
-  type = string
-}
-
-variable "env" {
-  type = string
-}
-
 variable "name" {
   type = string
 }
@@ -16,7 +8,10 @@ variable "managed_policy_arns" {
 }
 
 variable "inline_policy_json_documents" {
-  type    = list(string)
+  type    = list(object({
+    name = string
+    document = string
+  }))
   default = []
 }
 
@@ -54,6 +49,21 @@ variable "memory_size" {
   default = 128
 }
 
+variable "reserved_concurrent_executions" {
+  type    = number
+  default = null
+}
+
+variable "publish" {
+  type    = bool
+  default = false
+}
+
+variable "layer_arns" {
+  type    = list(string)
+  default = []
+}
+
 variable "environment" {
   type    = map(string)
   default = {}
@@ -63,6 +73,27 @@ variable "vpc_config" {
   type = object({
     subnet_ids         = list(string)
     security_group_ids = list(string)
+  })
+  default = null
+}
+
+variable "permission" {
+  type = object({
+    statement_id = string
+    action = string
+    principal = string
+    source_arn = string
+  })
+  default = null
+}
+
+variable "event_source_mapping" {
+  type = object({
+    event_source_arn = string
+    batch_size       = number
+    scaling_config = optional(object({
+      maximum_concurrency = optional(number)
+    }), null)
   })
   default = null
 }

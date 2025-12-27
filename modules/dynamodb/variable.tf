@@ -1,11 +1,3 @@
-variable "project" {
-  type = string
-}
-
-variable "env" {
-  type = string
-}
-
 variable "name" {
   type = string
 }
@@ -21,6 +13,13 @@ variable "pk" {
     type = string
   })
   description = "type = S|N|B"
+}
+
+variable "ttl" {
+  type = object({
+    attribute_name = string
+  })
+  default = null
 }
 
 variable "point_in_time_recovery" {

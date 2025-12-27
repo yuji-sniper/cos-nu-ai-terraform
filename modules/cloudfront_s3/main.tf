@@ -28,25 +28,25 @@ resource "aws_acm_certificate_validation" "this" {
 }
 
 # ==============================
-# キー
+# Public Key
 # ==============================
 resource "aws_cloudfront_public_key" "this" {
-  count       = var.trusted_public_key != null ? 1 : 0
-  name        = "${var.project}-${var.env}-${var.name}"
-  encoded_key = var.trusted_public_key
+  count       = var.encoded_public_key != null ? 1 : 0
+  name        = var.name
+  encoded_key = var.encoded_public_key
 }
 
 resource "aws_cloudfront_key_group" "this" {
-  count = var.trusted_public_key != null ? 1 : 0
-  name  = "${var.project}-${var.env}-${var.name}"
-  items = [aws_cloudfront_public_key.this.id]
+  count = var.encoded_public_key != null ? 1 : 0
+  name  = var.name
+  items = [aws_cloudfront_public_key.this[count.index].id]
 }
 
 # ==============================
 # OAC
 # ==============================
 resource "aws_cloudfront_origin_access_control" "this" {
-  name                              = "${var.project}-${var.env}-${var.name}"
+  name                              = var.name
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -56,7 +56,7 @@ resource "aws_cloudfront_origin_access_control" "this" {
 # Cache Policy
 # ==============================
 resource "aws_cloudfront_cache_policy" "this" {
-  name        = "${var.project}-${var.env}-${var.name}"
+  name        = var.name
   min_ttl     = 0
   max_ttl     = 31536000
   default_ttl = 86400
@@ -81,9 +81,9 @@ resource "aws_cloudfront_cache_policy" "this" {
 # ==============================
 resource "aws_cloudfront_distribution" "this" {
   origin {
-    domain_name              = "${var.s3_bucket_id}.s3.${var.region}.amazonaws.com"
+    domain_name              = var.s3_bucket_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.this.id
-    origin_id                = "${var.project}-${var.env}-${var.name}"
+    origin_id                = var.name
   }
 
   enabled         = true
@@ -91,19 +91,18 @@ resource "aws_cloudfront_distribution" "this" {
   aliases         = [var.domain_name]
 
   default_cache_behavior {
-    target_origin_id       = "${var.project}-${var.env}-${var.name}"
+    target_origin_id       = var.name
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = aws_cloudfront_cache_policy.this.id
     viewer_protocol_policy = "redirect-to-https"
 
-    trusted_key_groups = var.trusted_public_key != null ? [aws_cloudfront_key_group.this.id] : []
+    trusted_key_groups = var.encoded_public_key != null ? [aws_cloudfront_key_group.this[0].id] : []
   }
 
   viewer_certificate {
     acm_certificate_arn      = aws_acm_certificate.this.arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   restrictions {
@@ -151,7 +150,7 @@ locals {
   record_types = ["A", "AAAA"]
 }
 
-resource "aws_route53_record" "this" {
+resource "aws_route53_record" "alias" {
   for_each = toset(local.record_types)
   zone_id  = var.zone_id
   name     = var.domain_name
