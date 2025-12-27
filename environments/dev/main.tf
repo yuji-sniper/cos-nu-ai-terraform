@@ -109,6 +109,20 @@ module "dynamodb_generation_job" {
 }
 
 # ==================================================
+# CloudFront
+# ==================================================
+# media
+module "cloudfront_s3_media" {
+  source                = "../../modules/cloudfront_s3"
+  name                  = "media"
+  zone_id               = module.route53_zone.zone_id
+  domain_name           = "media.${local.domain}"
+  s3_bucket_id          = module.s3_private.bucket_id
+  s3_bucket_domain_name = module.s3_private.bucket_domain_name
+  encoded_public_key    = file("${path.module}/.keys/cloudfront/media.public_key.pem")
+}
+
+# ==================================================
 # VPC
 # ==================================================
 module "vpc_main" {
@@ -304,20 +318,6 @@ module "vpc_endpoint_main" {
       security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
     }
   ]
-}
-
-# ==================================================
-# CloudFront
-# ==================================================
-# media
-module "cloudfront_s3_media" {
-  source                = "../../modules/cloudfront_s3"
-  name                  = "media"
-  zone_id               = module.route53_zone.zone_id
-  domain_name           = "media.${local.domain}"
-  s3_bucket_id          = module.s3_private.bucket_id
-  s3_bucket_domain_name = module.s3_private.bucket_domain_name
-  encoded_public_key    = file("${path.module}/.keys/cloudfront/media.public_key.pem")
 }
 
 # ==================================================
