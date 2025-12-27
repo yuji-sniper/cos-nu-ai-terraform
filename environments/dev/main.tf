@@ -4,6 +4,35 @@ data "aws_region" "apne1" {
   provider = aws.apne1
 }
 
+# ==================================================
+# Route53
+# ==================================================
+module "route53_zone" {
+  source = "../../modules/route53_zone"
+  name   = local.domain
+}
+
+module "route53_record_app_a" {
+  source      = "../../modules/route53_record"
+  zone_id     = module.route53_zone.zone_id
+  domain_name = local.domain
+  type        = "A"
+  ttl         = 900
+  records = [
+    var.vercel_apex_a_record_ip
+  ]
+}
+
+module "route53_record_admin_cname" {
+  source      = "../../modules/route53_record"
+  zone_id     = module.route53_zone.zone_id
+  domain_name = "admin.${local.domain}"
+  type        = "CNAME"
+  ttl         = 900
+  records = [
+    var.vercel_admin_cname_target
+  ]
+}
 
 # ==================================================
 # SSM Parameter
@@ -274,36 +303,6 @@ module "vpc_endpoint_main" {
       subnet_ids = module.vpc_main.private_subnet_ids
       security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
     }
-  ]
-}
-
-# ==================================================
-# Route53
-# ==================================================
-module "route53_zone" {
-  source = "../../modules/route53_zone"
-  name   = local.domain
-}
-
-module "route53_record_app_a" {
-  source      = "../../modules/route53_record"
-  zone_id     = module.route53_zone.zone_id
-  domain_name = local.domain
-  type        = "A"
-  ttl         = 900
-  records = [
-    var.vercel_apex_a_record_ip
-  ]
-}
-
-module "route53_record_admin_cname" {
-  source      = "../../modules/route53_record"
-  zone_id     = module.route53_zone.zone_id
-  domain_name = "admin.${local.domain}"
-  type        = "CNAME"
-  ttl         = 900
-  records = [
-    var.vercel_admin_cname_target
   ]
 }
 
