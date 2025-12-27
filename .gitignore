@@ -4,3 +4,7 @@
 *.tfvars
 
 **/outputs/*
+
+**/.keys/*
+
+node_modules

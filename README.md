@@ -5,21 +5,27 @@
 $ cd environments/{環境}
 ```
 
+### makefileのシンボリックリングを貼る
+```sh
+$ ln -sf ../../makefile makefile
+```
+
 ### 各環境のディレクトリで共通設定ファイルのシンボリックリンクを貼る
 ```sh
-$ ln -sf ../../backend.tf backend.tf
-$ ln -sf ../../provider.tf provider.tf
-$ ln -sf ../../base_locals.tf base_locals.tf
+$ make ln
 ```
 
 ### 各種ファイル作成
 - backend.config
 - locals.tf
 - main.tf
+- terraform.tfvars
+- terraform.tfvars.example
+- variable.tf
 
 ### init
 ```sh
-$ terraform init -backend-config=backend.config
+$ make init
 ```
 
 ### plan、apply
@@ -28,20 +34,7 @@ $ terraform plan
 $ terraform apply
 ```
 
-## Tips
-
-### 秘密鍵 Secret Manager アップロード
-バイナリにしてアップロード
+### gpg復号
 ```sh
-$ aws secretsmanager create-secret \
-    --name {キー名} \
-    --secret-binary file://~/.ssh/private.pem
-```
-取り出し
-```sh
-$ aws secretsmanager get-secret-value \
-    --secret-id {キー名} \
-    --query 'SecretBinary' \
-    --output text \
-    | base64 -d > private.pem
+$ echo "{output出力された暗号文字列}" | base64 -d | gpg -r naoto-yoshimura
 ```

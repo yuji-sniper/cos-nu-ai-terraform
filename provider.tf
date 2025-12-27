@@ -1,8 +1,8 @@
 provider "aws" {
   region = "us-east-1"
-  default_tags {
-    tags = {
-      Env = local.env
-    }
-  }
+}
+
+provider "aws" {
+  region = "ap-northeast-1"
+  alias  = "apne1"
 }
