@@ -200,9 +200,9 @@ module "security_group_lambda_stop_comfyui_instance" {
   vpc_id = module.vpc_main.vpc_id
 }
 
-module "security_group_vpc_endpoint_ssm_main" {
+module "security_group_vpc_endpoint_main" {
   source = "../../modules/security_group"
-  name   = "vpc-endpoint-ssm-main"
+  name   = "vpc-endpoint-main"
   vpc_id = module.vpc_main.vpc_id
 }
 
@@ -214,8 +214,8 @@ module "security_group_rule_ec2_comfyui" {
   # allow_egress_to_all = true
   egress_to_sg = [
     {
-      description                  = "request to VPC Endpoint(SSM)"
-      referenced_security_group_id = module.security_group_vpc_endpoint_ssm_main.security_group_id
+      description                  = "request to VPC Endpoint"
+      referenced_security_group_id = module.security_group_vpc_endpoint_main.security_group_id
       from_port                    = 443
       to_port                      = 443
       ip_protocol                  = "tcp"
@@ -258,6 +258,13 @@ module "security_group_rule_lambda_generation_job" {
       from_port                    = 8188
       to_port                      = 8188
       ip_protocol                  = "tcp"
+    },
+    {
+      description                  = "request to VPC Endpoint"
+      referenced_security_group_id = module.security_group_vpc_endpoint_main.security_group_id
+      from_port                    = 443
+      to_port                      = 443
+      ip_protocol                  = "tcp"
     }
   ]
   egress_to_prefix_list = [
@@ -288,6 +295,13 @@ module "security_group_rule_lambda_stop_comfyui_instance" {
       from_port                    = 8188
       to_port                      = 8188
       ip_protocol                  = "tcp"
+    },
+    {
+      description                  = "request to VPC Endpoint"
+      referenced_security_group_id = module.security_group_vpc_endpoint_main.security_group_id
+      from_port                    = 443
+      to_port                      = 443
+      ip_protocol                  = "tcp"
     }
   ]
   egress_to_prefix_list = [
@@ -301,13 +315,28 @@ module "security_group_rule_lambda_stop_comfyui_instance" {
   ]
 }
 
-module "security_group_rule_vpc_endpoint_ssm_main" {
+module "security_group_rule_vpc_endpoint_main" {
   source            = "../../modules/security_group_rule"
-  security_group_id = module.security_group_vpc_endpoint_ssm_main.security_group_id
+  security_group_id = module.security_group_vpc_endpoint_main.security_group_id
   ingress_from_sg = [
+    # EC2へのSSM接続のために必要
     {
       description                  = "request from EC2(ComfyUI)"
       referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
+      from_port                    = 443
+      to_port                      = 443
+      ip_protocol                  = "tcp"
+    },
+    {
+      description                  = "request from Lambda(Generation Job)"
+      referenced_security_group_id = module.security_group_lambda_generation_job.security_group_id
+      from_port                    = 443
+      to_port                      = 443
+      ip_protocol                  = "tcp"
+    },
+    {
+      description                  = "request from Lambda(Stop ComfyUI Instance)"
+      referenced_security_group_id = module.security_group_lambda_stop_comfyui_instance.security_group_id
       from_port                    = 443
       to_port                      = 443
       ip_protocol                  = "tcp"
@@ -353,7 +382,8 @@ module "vpc_endpoint_main" {
             Principal = "*"
             Action    = "dynamodb:*"
             Resource = [
-              module.dynamodb_generation_job.arn
+              module.dynamodb_generation_job.arn,
+              module.dynamodb_comfyui_last_access_at.arn
             ]
           }
         ]
@@ -362,19 +392,29 @@ module "vpc_endpoint_main" {
   ]
   interface = [
     {
+      service_name       = "com.amazonaws.${local.region}.ec2"
+      subnet_ids         = module.vpc_main.private_subnet_ids
+      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    },
+    {
+      service_name       = "com.amazonaws.${local.region}.sts"
+      subnet_ids         = module.vpc_main.private_subnet_ids
+      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    },
+    {
       service_name       = "com.amazonaws.${local.region}.ssm"
       subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
+      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
     },
     {
       service_name       = "com.amazonaws.${local.region}.ssmmessages"
       subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
+      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
     },
     {
       service_name       = "com.amazonaws.${local.region}.ec2messages"
       subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_ssm_main.security_group_id]
+      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
     }
   ]
 }
@@ -520,7 +560,7 @@ module "lambda_generation_job" {
   }
   environment = {
     DYNAMODB_GENERATION_JOB_TABLE_NAME = module.dynamodb_generation_job.table_name
-    DYNAMODB_GENERATION_JOB_REGION     = local.region
+    DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME = module.dynamodb_comfyui_last_access_at.table_name
     INSTANCE_ID                        = module.ec2_comfyui.instance_id
   }
   inline_policy_json_documents = [
@@ -544,6 +584,11 @@ module "lambda_generation_job" {
             Effect   = "Allow"
             Action   = ["dynamodb:GetItem"]
             Resource = [module.dynamodb_generation_job.arn]
+          },
+          {
+            Effect   = "Allow"
+            Action   = ["dynamodb:PutItem"]
+            Resource = [module.dynamodb_comfyui_last_access_at.arn]
           }
         ]
       })
@@ -731,7 +776,7 @@ module "scheduler_stop_comfyui_instance" {
   target_arn          = module.lambda_stop_comfyui_instance.lambda_function_arn
   schedule_expression = "cron(0/5 * * * ? *)"
   timezone = "Asia/Tokyo"
-  state = "ENABLED"
+  state = "DISABLED"
 }
 
 # ==================================================

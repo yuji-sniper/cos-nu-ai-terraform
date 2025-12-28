@@ -99,7 +99,7 @@ export const handler = async (event) => {
   await ddb.send(new PutItemCommand({
     TableName: DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME,
     Item: {
-      id: { N: 0 },
+      id: { N: "0" },
       last_access_at: { S: new Date().toISOString() },
     },
   }))
