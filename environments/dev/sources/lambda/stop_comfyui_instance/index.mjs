@@ -3,7 +3,7 @@ import { EC2Client, DescribeInstancesCommand, StopInstancesCommand } from '@aws-
 
 const DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME = process.env.DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME
 const EC2_INSTANCE_ID = process.env.EC2_INSTANCE_ID
-const IDLE_THRESHOLD_MS = Number(process.env.IDLE_THRESHOLD_MS ?? 10) * 60 * 1000
+const IDLE_THRESHOLD_MS = Number(process.env.IDLE_THRESHOLD_MINUTES ?? 10) * 60 * 1000
 
 const ddb = new DynamoDBClient({})
 const ec2 = new EC2Client({})

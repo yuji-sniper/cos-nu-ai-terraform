@@ -732,7 +732,7 @@ module "lambda_stop_comfyui_instance" {
   environment = {
     EC2_INSTANCE_ID = module.ec2_comfyui.instance_id
     DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME = module.dynamodb_comfyui_last_access_at.table_name
-    IDLE_THRESHOLD_MS = 10 * 60 * 1000
+    IDLE_THRESHOLD_MINUTES = 10
   }
   inline_policy_json_documents = [
     {
