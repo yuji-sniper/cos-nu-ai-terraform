@@ -23,10 +23,8 @@ const handleError = (message) => {
 /**
  * ComfyUI APIを呼び出す
  */
-const fetchComfyuiApi = async (path, method, body) => {
-  const comfyUiUrl = await getRunningComfyUiUrl()
-
-  const res = await fetch(`${comfyUiUrl}${path}`, {
+const fetchComfyuiApi = async (url, path, method, body) => {
+  const res = await fetch(`${url}${path}`, {
     method,
     headers: API_HEADERS,
     body: body ? JSON.stringify(body) : undefined
@@ -104,8 +102,11 @@ export const handler = async (event) => {
     },
   }))
 
+  // ComfyUIのURLを取得
+  const comfyUiUrl = await getRunningComfyUiUrl()
+
   // ComfyUIにプロンプトを投げる
-  const res = await fetchComfyuiApi("/prompt", "POST", {
+  const res = await fetchComfyuiApi(comfyUiUrl, "/prompt", "POST", {
     client_id: crypto.randomUUID(),
     prompt: body.prompt
   })
@@ -123,10 +124,10 @@ export const handler = async (event) => {
     // shouldExecuteがfalseになった場合は止める
     if (!shouldExecute) {
       await Promise.all([
-        fetchComfyuiApi("/interrupt", "POST", {
+        fetchComfyuiApi(comfyUiUrl, "/interrupt", "POST", {
           prompt_id: promptId
         }),
-        fetchComfyuiApi("/queue", "POST", {
+        fetchComfyuiApi(comfyUiUrl, "/queue", "POST", {
           delete: [promptId]
         })
       ])
@@ -134,7 +135,7 @@ export const handler = async (event) => {
     }
 
     // ComfyUIのプロンプト実行結果を取得
-    const res = await fetchComfyuiApi(`/history/${promptId}`, "GET")
+    const res = await fetchComfyuiApi(comfyUiUrl, `/history/${promptId}`, "GET")
     const status = res[promptId]?.status
 
     if (status) {

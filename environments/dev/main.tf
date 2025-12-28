@@ -589,6 +589,17 @@ module "lambda_generation_job" {
             Effect   = "Allow"
             Action   = ["dynamodb:PutItem"]
             Resource = [module.dynamodb_comfyui_last_access_at.arn]
+          },
+          # EC2
+          {
+            Effect   = "Allow"
+            Action   = ["ec2:DescribeInstances"]
+            Resource = ["*"]
+          },
+          {
+            Effect   = "Allow"
+            Action   = ["ec2:StartInstances"]
+            Resource = [module.ec2_comfyui.arn]
           }
         ]
       })
@@ -732,7 +743,12 @@ module "lambda_stop_comfyui_instance" {
           # EC2
           {
             Effect = "Allow"
-            Action = ["ec2:DescribeInstances", "ec2:StopInstances"]
+            Action = ["ec2:DescribeInstances"]
+            Resource = ["*"]
+          },
+          {
+            Effect = "Allow"
+            Action = ["ec2:StopInstances"]
             Resource = [module.ec2_comfyui.arn]
           },
           # DynamoDB
