@@ -1,16 +1,15 @@
-import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb"
+import { DynamoDBClient, GetItemCommand, PutItemCommand } from "@aws-sdk/client-dynamodb"
+import { getRunningComfyUiUrl } from "./instance.mjs"
 
 const DYNAMODB_GENERATION_JOB_TABLE_NAME = process.env.DYNAMODB_GENERATION_JOB_TABLE_NAME
-const DYNAMODB_GENERATION_JOB_REGION = process.env.DYNAMODB_GENERATION_JOB_REGION
+const DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME = process.env.DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME
 const API_HEADERS = {
   "Content-Type": "application/json"
 }
 const MAX_POLL_COUNT = 60
 const POLL_INTERVAL = 5000
 
-const ddb = new DynamoDBClient({
-  region: DYNAMODB_GENERATION_JOB_REGION,
-})
+const ddb = new DynamoDBClient({})
 
 /**
  * エラーハンドリング
@@ -25,8 +24,9 @@ const handleError = (message) => {
  * ComfyUI APIを呼び出す
  */
 const fetchComfyuiApi = async (path, method, body) => {
-  // TODO: EC2のdescribeInstanceで取得したプライベートIPを使用する
-  const res = await fetch(`http://127.0.0.1:8188${path}`, {
+  const comfyUiUrl = await getRunningComfyUiUrl()
+
+  const res = await fetch(`${comfyUiUrl}${path}`, {
     method,
     headers: API_HEADERS,
     body: body ? JSON.stringify(body) : undefined
@@ -94,6 +94,15 @@ export const handler = async (event) => {
     console.log("Generation job should not be executed, skipping")
     return
   }
+
+  // dynamodbのcomfyui_last_access_atを更新
+  await ddb.send(new PutItemCommand({
+    TableName: DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME,
+    Item: {
+      id: { N: 0 },
+      last_access_at: { S: new Date().toISOString() },
+    },
+  }))
 
   // ComfyUIにプロンプトを投げる
   const res = await fetchComfyuiApi("/prompt", "POST", {
