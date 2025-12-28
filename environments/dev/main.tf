@@ -863,6 +863,6 @@ module "iam_user_comfyui_local" {
 #   value = module.iam_user_comfyui_local.secret_access_key
 # }
 
-# output "iam_user_backend_encrypted_secret" {
-#   value = module.iam_user_backend.secret_access_key
-# }
+output "iam_user_backend_encrypted_secret" {
+  value = module.iam_user_backend.secret_access_key
+}
