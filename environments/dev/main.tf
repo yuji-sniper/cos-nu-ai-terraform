@@ -64,6 +64,14 @@ module "ssm_parameter_supabase_service_role_key" {
   value  = "dummy"
 }
 
+# CIVITAI API Key
+module "ssm_parameter_civitai_api_key" {
+  source = "../../modules/ssm_parameter"
+  name   = "/civitai/api-key"
+  type   = "SecureString"
+  value  = "dummy"
+}
+
 # ==================================================
 # S3
 # ==================================================
