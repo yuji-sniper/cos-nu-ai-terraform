@@ -97,12 +97,6 @@ resource "aws_lambda_function" "this" {
     }
   }
 
-  lifecycle {
-    ignore_changes = [
-      environment
-    ]
-  }
-
   depends_on = [
     aws_s3_object.this,
     aws_iam_role_policy_attachment.basic,

@@ -1,11 +1,3 @@
-variable "project" {
-  type = string
-}
-
-variable "env" {
-  type = string
-}
-
 variable "name" {
   type = string
 }
@@ -21,4 +13,9 @@ variable "schedule_expression" {
 variable "timezone" {
   type    = string
   default = "Asia/Tokyo"
+}
+
+variable "state" {
+  type    = string
+  default = "ENABLED"
 }

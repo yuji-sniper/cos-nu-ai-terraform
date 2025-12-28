@@ -19,7 +19,7 @@ data "aws_iam_policy_document" "scheduler_assume" {
 }
 
 resource "aws_iam_role" "scheduler" {
-  name               = "${var.project}-${var.env}-scheduler-${var.name}"
+  name               = "scheduler-${var.name}"
   assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
 }
 
@@ -31,7 +31,7 @@ data "aws_iam_policy_document" "scheduler" {
 }
 
 resource "aws_iam_policy" "scheduler" {
-  name   = "${var.project}-${var.env}-scheduler-${var.name}"
+  name   = "scheduler-${var.name}"
   policy = data.aws_iam_policy_document.scheduler.json
 }
 
@@ -41,10 +41,10 @@ resource "aws_iam_role_policy_attachment" "scheduler" {
 }
 
 resource "aws_scheduler_schedule" "this" {
-  name                         = "${var.project}-${var.env}-${var.name}"
+  name                         = var.name
   schedule_expression          = var.schedule_expression
   schedule_expression_timezone = var.timezone
-
+  state                        = var.state
   flexible_time_window {
     mode = "OFF"
   }

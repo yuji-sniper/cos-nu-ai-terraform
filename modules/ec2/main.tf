@@ -12,7 +12,7 @@ data "aws_iam_policy_document" "ec2_assume" {
 }
 
 resource "aws_iam_role" "this" {
-  name               = "${var.project}-${var.env}-ec2-${var.name}"
+  name               = "ec2-${var.name}"
   assume_role_policy = data.aws_iam_policy_document.ec2_assume.json
 }
 
@@ -24,7 +24,7 @@ resource "aws_iam_role_policy_attachment" "managed" {
 
 resource "aws_iam_policy" "inline" {
   count  = var.inline_policy_json_document != null ? 1 : 0
-  name   = "${var.project}-${var.env}-ec2-${var.name}"
+  name   = "ec2-${var.name}"
   policy = var.inline_policy_json_document
 }
 
@@ -35,7 +35,7 @@ resource "aws_iam_role_policy_attachment" "inline" {
 }
 
 resource "aws_iam_instance_profile" "this" {
-  name = "${var.project}-${var.env}-ec2-${var.name}"
+  name = "ec2-${var.name}"
   role = aws_iam_role.this.name
 }
 
@@ -67,6 +67,6 @@ resource "aws_instance" "this" {
   user_data_replace_on_change = var.user_data_replace_on_change
 
   tags = {
-    Name = "${var.project}-${var.env}-${var.name}"
+    Name = "ec2-${var.name}"
   }
 }
