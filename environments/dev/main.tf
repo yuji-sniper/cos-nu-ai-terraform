@@ -211,7 +211,7 @@ module "security_group_rule_ec2_comfyui" {
   source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_ec2_comfyui.security_group_id
   # TODO: EC2でComfyUI関連のインストールが完了したら削除
-  allow_egress_to_all = true
+  # allow_egress_to_all = true
   egress_to_sg = [
     {
       description                  = "request to VPC Endpoint(SSM)"
@@ -380,6 +380,87 @@ module "vpc_endpoint_main" {
 }
 
 # ==================================================
+# EC2
+# ==================================================
+data "cloudinit_config" "comfyui" {
+  gzip          = false
+  base64_encode = true
+  part {
+    content_type = "text/cloud-config"
+    content = yamlencode({
+      write_files = [
+        {
+          path = "/home/ubuntu/setup.sh"
+          owner = "ubuntu:ubuntu"
+          permissions = "0755"
+          content = templatefile("${path.module}/sources/ec2/user_data/comfyui/setup.sh.tftpl", {
+            region = local.region
+            private_bucket_name = module.s3_private.bucket_id
+          })
+        },
+        {
+          path = "/home/ubuntu/init.sh"
+          owner = "root:root"
+          permissions = "0755"
+          content = file("${path.module}/sources/ec2/user_data/comfyui/init.sh")
+        },
+        {
+          path = "/etc/systemd/system/comfyui.service"
+          owner = "root:root"
+          permissions = "0644"
+          content = file("${path.module}/sources/ec2/user_data/comfyui/comfyui.service")
+        }
+      ]
+      runcmd = [
+        # "sudo -u ubuntu HOME=/home/ubuntu /home/ubuntu/setup.sh",
+        "/home/ubuntu/init.sh"
+      ]
+    })
+  }
+}
+
+# ComfyUI
+module "ec2_comfyui" {
+  source = "../../modules/ec2"
+  name = "comfyui"
+  ami = "ami-0365bff494b18bf93"
+  instance_type = "g4dn.xlarge"
+  subnet_id = module.vpc_main.private_subnet_ids[0]
+  security_group_ids = [module.security_group_ec2_comfyui.security_group_id]
+  associate_public_ip_address = false
+  user_data_base64 = data.cloudinit_config.comfyui.rendered
+  user_data_replace_on_change = true
+  root_block_device = {
+    volume_size = 60
+    volume_type = "gp3"
+    iops = 3000
+    encrypted = true
+    delete_on_termination = true
+  }
+  managed_policy_arns = [
+    "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  ]
+  inline_policy_json_document = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:PutObject",
+          "s3:GetObject"
+        ]
+        Resource = [
+          module.s3_private.bucket_arn,
+          "${module.s3_private.bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+
+# ==================================================
 # SQS
 # ==================================================
 module "sqs_generation_job" {
@@ -440,6 +521,7 @@ module "lambda_generation_job" {
   environment = {
     DYNAMODB_GENERATION_JOB_TABLE_NAME = module.dynamodb_generation_job.table_name
     DYNAMODB_GENERATION_JOB_REGION     = local.region
+    INSTANCE_ID                        = module.ec2_comfyui.instance_id
   }
   inline_policy_json_documents = [
     {
@@ -592,8 +674,7 @@ module "lambda_stop_comfyui_instance" {
     security_group_ids = [module.security_group_lambda_stop_comfyui_instance.security_group_id]
   }
   environment = {
-    # TODO: EC2作成時にコメントイン
-    # EC2_INSTANCE_ID = module.ec2_comfyui.instance_id
+    EC2_INSTANCE_ID = module.ec2_comfyui.instance_id
     DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME = module.dynamodb_comfyui_last_access_at.table_name
     IDLE_THRESHOLD_MS = 10 * 60 * 1000
   }
@@ -603,13 +684,12 @@ module "lambda_stop_comfyui_instance" {
       document = jsonencode({
         Version = "2012-10-17"
         Statement = [
-          # TODO: EC2作成時にコメントイン
-          # # EC2
-          # {
-          #   Effect = "Allow"
-          #   Action = ["ec2:DescribeInstances", "ec2:StopInstances"]
-          #   Resource = [module.ec2_comfyui.arn]
-          # },
+          # EC2
+          {
+            Effect = "Allow"
+            Action = ["ec2:DescribeInstances", "ec2:StopInstances"]
+            Resource = [module.ec2_comfyui.arn]
+          },
           # DynamoDB
           {
             Effect = "Allow"
@@ -651,7 +731,7 @@ module "scheduler_stop_comfyui_instance" {
   target_arn          = module.lambda_stop_comfyui_instance.lambda_function_arn
   schedule_expression = "cron(0/5 * * * ? *)"
   timezone = "Asia/Tokyo"
-  state = "DISABLED"
+  state = "ENABLED"
 }
 
 # ==================================================
