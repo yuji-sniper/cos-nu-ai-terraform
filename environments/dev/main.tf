@@ -792,7 +792,7 @@ module "scheduler_stop_comfyui_instance" {
   target_arn          = module.lambda_stop_comfyui_instance.lambda_function_arn
   schedule_expression = "cron(0/5 * * * ? *)"
   timezone = "Asia/Tokyo"
-  state = "DISABLED"
+  state = "ENABLED"
 }
 
 # ==================================================

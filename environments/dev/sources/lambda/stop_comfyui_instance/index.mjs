@@ -59,5 +59,5 @@ export const handler = async () => {
     return
   }
 
-  console.log(`skipped: (instanceState: ${instanceState}, lastAccessAt: ${lastAccessAt}, stoppedAt: ${now.toISOString()})`)
+  console.log(`skipped: (instanceState: ${instanceState}, lastAccessAt: ${lastAccessAt}, executedAt: ${now.toISOString()})`)
 }
