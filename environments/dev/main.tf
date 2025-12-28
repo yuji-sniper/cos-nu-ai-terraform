@@ -116,6 +116,21 @@ module "dynamodb_generation_job" {
   }
 }
 
+# ComfyUIインスタンスへの最終アクセス日時を管理
+module "dynamodb_comfyui_last_access_at" {
+  source       = "../../modules/dynamodb"
+  name         = "comfyui-last-access-at"
+  billing_mode = "PAY_PER_REQUEST"
+  pk = {
+    name = "id"
+    type = "N"
+  }
+  item = jsonencode({
+    id             = { N = "0" },
+    last_access_at = { S = timestamp() }
+  })
+}
+
 # ==================================================
 # CloudFront
 # ==================================================
