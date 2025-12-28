@@ -38,3 +38,30 @@ $ terraform apply
 ```sh
 $ echo "{output出力された暗号文字列}" | base64 -d | gpg -r naoto-yoshimura
 ```
+
+### ポートフォワードでComfyUI確認
+```sh
+$ aws ssm start-session \
+  --target <instance-id> \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["8188"],"localPortNumber":["8188"]}'
+```
+
+### EC2へのSSM接続
+セッションマネージャーの設定で、
+```
+Run As: ubuntu
+```
+にしておくといい。
+
+```sh
+# bashを使用
+$ exec /bin/bash
+# HOMEに移動
+$ cd 
+```
+
+ComfyUIの起動を確認
+```sh
+$ systemctl status comfyui
+```
