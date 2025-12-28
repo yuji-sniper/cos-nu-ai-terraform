@@ -1,3 +1,4 @@
+// TODO: pocに合わせて修正する
 import { EC2Client, DescribeInstancesCommand, StartInstancesCommand } from '@aws-sdk/client-ec2'
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
 

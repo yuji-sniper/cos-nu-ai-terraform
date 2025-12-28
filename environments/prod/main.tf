@@ -69,7 +69,7 @@ module "security_group_lambda_stop_comfyui" {
 module "security_group_rule_ec2_comfyui" {
   source            = "../../modules/security_group_rule"
   security_group_id = module.security_group_ec2_comfyui.security_group_id
-  # TODO: EC2でComfyUI関連のインストールが完了したら削除
+  # TODO: allow_egress_to_allはEC2でComfyUI関連のインストールが完了したら削除
   allow_egress_to_all = true
   ingress_from_sg = [
     {
