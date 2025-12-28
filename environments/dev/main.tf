@@ -194,6 +194,12 @@ module "security_group_lambda_generation_job" {
   vpc_id = module.vpc_main.vpc_id
 }
 
+module "security_group_lambda_stop_comfyui_instance" {
+  source = "../../modules/security_group"
+  name   = "lambda-stop-comfyui-instance"
+  vpc_id = module.vpc_main.vpc_id
+}
+
 module "security_group_vpc_endpoint_ssm_main" {
   source = "../../modules/security_group"
   name   = "vpc-endpoint-ssm-main"
@@ -231,6 +237,13 @@ module "security_group_rule_ec2_comfyui" {
       from_port                    = 8188
       to_port                      = 8188
       ip_protocol                  = "tcp"
+    },
+    {
+      description                  = "request from Lambda(Stop ComfyUI Instance)"
+      referenced_security_group_id = module.security_group_lambda_stop_comfyui_instance.security_group_id
+      from_port                    = 8188
+      to_port                      = 8188
+      ip_protocol                  = "tcp"
     }
   ]
 }
@@ -255,6 +268,29 @@ module "security_group_rule_lambda_generation_job" {
       to_port        = 443
       ip_protocol    = "tcp"
     },
+    {
+      description    = "request to DynamoDB"
+      prefix_list_id = data.aws_prefix_list.dynamodb.id
+      from_port      = 443
+      to_port        = 443
+      ip_protocol    = "tcp"
+    }
+  ]
+}
+
+module "security_group_rule_lambda_stop_comfyui_instance" {
+  source            = "../../modules/security_group_rule"
+  security_group_id = module.security_group_lambda_stop_comfyui_instance.security_group_id
+  egress_to_sg = [
+    {
+      description                  = "request to EC2(ComfyUI)"
+      referenced_security_group_id = module.security_group_ec2_comfyui.security_group_id
+      from_port                    = 8188
+      to_port                      = 8188
+      ip_protocol                  = "tcp"
+    }
+  ]
+  egress_to_prefix_list = [
     {
       description    = "request to DynamoDB"
       prefix_list_id = data.aws_prefix_list.dynamodb.id
@@ -539,6 +575,53 @@ module "lambda_enforce_private_inputs_object_limit" {
   }
 }
 
+# ComfyUIインスタンスを停止
+module "lambda_stop_comfyui_instance" {
+  source       = "../../modules/lambda"
+  name         = "stop-comfyui-instance"
+  handler      = "index.handler"
+  runtime      = "nodejs22.x"
+  timeout      = 30
+  memory_size  = 128
+  source_dir   = "${path.module}/sources/lambda/stop_comfyui_instance"
+  output_path  = "${path.module}/outputs/lambda/stop_comfyui_instance.zip"
+  s3_bucket_id = module.s3_lambda_functions.bucket_id
+  s3_key       = "stop_comfyui_instance/index.zip"
+  vpc_config = {
+    subnet_ids         = module.vpc_main.private_subnet_ids
+    security_group_ids = [module.security_group_lambda_stop_comfyui_instance.security_group_id]
+  }
+  environment = {
+    # TODO: EC2作成時にコメントイン
+    # EC2_INSTANCE_ID = module.ec2_comfyui.instance_id
+    DYNAMODB_COMFYUI_LAST_ACCESS_AT_TABLE_NAME = module.dynamodb_comfyui_last_access_at.table_name
+    IDLE_THRESHOLD_MS = 10 * 60 * 1000
+  }
+  inline_policy_json_documents = [
+    {
+      name = "LambdaStopComfyuiInstancePolicy"
+      document = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          # TODO: EC2作成時にコメントイン
+          # # EC2
+          # {
+          #   Effect = "Allow"
+          #   Action = ["ec2:DescribeInstances", "ec2:StopInstances"]
+          #   Resource = [module.ec2_comfyui.arn]
+          # },
+          # DynamoDB
+          {
+            Effect = "Allow"
+            Action = ["dynamodb:GetItem"]
+            Resource = [module.dynamodb_comfyui_last_access_at.arn]
+          }
+        ]
+      })
+    }
+  ]
+}
+
 # ==================================================
 # S3 Bucket Notification
 # ==================================================
@@ -557,6 +640,18 @@ module "s3_bucket_notification" {
       filter_prefix = "outputs/"
     },
   ]
+}
+
+# ==================================================
+# Scheduler
+# ==================================================
+module "scheduler_stop_comfyui_instance" {
+  source              = "../../modules/scheduler"
+  name                = "stop-comfyui-instance"
+  target_arn          = module.lambda_stop_comfyui_instance.lambda_function_arn
+  schedule_expression = "cron(0/5 * * * ? *)"
+  timezone = "Asia/Tokyo"
+  state = "DISABLED"
 }
 
 # ==================================================
