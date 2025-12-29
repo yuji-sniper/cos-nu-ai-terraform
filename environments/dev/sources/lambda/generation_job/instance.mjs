@@ -5,6 +5,7 @@ const INSTANCE_READY_TIMEOUT_MS = 3 * 60 * 1000
 const INSTANCE_STATE_POLL_INTERVAL_MS = 5000
 const COMFYUI_READY_TIMEOUT_MS = 2 * 60 * 1000
 const COMFYUI_READY_POLL_INTERVAL_MS = 5000
+const COMFYUI_PORT = 8188
 
 const ec2 = new EC2Client({})
 
@@ -31,11 +32,14 @@ async function startInstance() {
  * インスタンスが引数のステータスになるまで待つ
  */
 async function waitForInstanceState(wanted) {
+  console.log(`[waitForInstanceState] waiting for instance state: (wanted: ${wanted})`)
+
   const startTime = Date.now()
 
   while (Date.now() - startTime < INSTANCE_READY_TIMEOUT_MS) {
     const instance = await describeInstance()
     if (instance?.State?.Name === wanted) {
+      console.log(`[waitForInstanceState] instance state is now: (state: ${instance?.State?.Name})`)
       return instance
     }
 
@@ -84,19 +88,23 @@ export async function getRunningComfyUiUrl() {
     throw new Error("private ip is not found")
   }
 
-  const comfyUiUrl = `http://${privateIp}:8188`
+  const comfyUiUrl = `http://${privateIp}:${COMFYUI_PORT}`
 
   const startTime = Date.now()
   while (Date.now() - startTime < COMFYUI_READY_TIMEOUT_MS) {
-    const res = await fetch(`${comfyUiUrl}/`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Range': 'bytes=0-0',
-      },
-    })
-    if (res.status === 206 || res.status === 200) {
-      return comfyUiUrl
+    try {
+      const res = await fetch(`${comfyUiUrl}/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Range': 'bytes=0-0',
+        },
+      })
+      if (res.status === 206 || res.status === 200) {
+        return comfyUiUrl
+      }
+    } catch (error) {
+      console.log(`[getRunningComfyUiUrl]${error.message}`)
     }
 
     await new Promise(resolve => setTimeout(resolve, COMFYUI_READY_POLL_INTERVAL_MS))

@@ -392,30 +392,31 @@ module "vpc_endpoint_main" {
   ]
   interface = [
     {
-      service_name       = "com.amazonaws.${local.region}.ec2"
-      subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
-    },
-    {
       service_name       = "com.amazonaws.${local.region}.sts"
       subnet_ids         = module.vpc_main.private_subnet_ids
       security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
     },
     {
-      service_name       = "com.amazonaws.${local.region}.ssm"
+      service_name       = "com.amazonaws.${local.region}.ec2"
       subnet_ids         = module.vpc_main.private_subnet_ids
       security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
     },
-    {
-      service_name       = "com.amazonaws.${local.region}.ssmmessages"
-      subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
-    },
-    {
-      service_name       = "com.amazonaws.${local.region}.ec2messages"
-      subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
-    }
+    # SSM接続したい時に作成する
+    # {
+    #   service_name       = "com.amazonaws.${local.region}.ssm"
+    #   subnet_ids         = module.vpc_main.private_subnet_ids
+    #   security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    # },
+    # {
+    #   service_name       = "com.amazonaws.${local.region}.ssmmessages"
+    #   subnet_ids         = module.vpc_main.private_subnet_ids
+    #   security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    # },
+    # {
+    #   service_name       = "com.amazonaws.${local.region}.ec2messages"
+    #   subnet_ids         = module.vpc_main.private_subnet_ids
+    #   security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    # }
   ]
 }
 
