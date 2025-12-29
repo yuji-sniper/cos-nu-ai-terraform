@@ -54,6 +54,9 @@ Run As: ubuntu
 ```
 にしておくといい。
 
+VPC EndpointのInterfaceの`ssm, ssmmessages, ec2messages`をコメントインしてapplyする。
+
+シェル内↓
 ```sh
 # bashを使用
 $ exec /bin/bash
