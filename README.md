@@ -36,7 +36,7 @@ $ terraform apply
 
 ### gpg復号
 ```sh
-$ echo "{output出力された暗号文字列}" | base64 -d | gpg -r naoto-yoshimura
+$ echo "{output出力された暗号文字列}" | base64 -d | gpg -r {name}
 ```
 
 ### ポートフォワードでComfyUI確認
