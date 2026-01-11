@@ -89,8 +89,9 @@ variable "permission" {
 
 variable "event_source_mapping" {
   type = object({
-    event_source_arn = string
-    batch_size       = number
+    event_source_arn  = string
+    batch_size        = number
+    starting_position = optional(string, null)
     scaling_config = optional(object({
       maximum_concurrency = optional(number)
     }), null)

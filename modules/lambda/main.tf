@@ -126,6 +126,7 @@ resource "aws_lambda_event_source_mapping" "this" {
   event_source_arn   = var.event_source_mapping.event_source_arn
   function_name      = aws_lambda_function.this.function_name
   batch_size         = var.event_source_mapping.batch_size
+  starting_position  = try(var.event_source_mapping.starting_position, null)
 
   dynamic "scaling_config" {
     for_each = var.event_source_mapping.scaling_config != null ? [1] : []

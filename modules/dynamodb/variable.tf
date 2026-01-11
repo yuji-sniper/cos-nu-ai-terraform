@@ -31,3 +31,14 @@ variable "item" {
   type    = string
   default = null
 }
+
+variable "stream_enabled" {
+  type    = bool
+  default = false
+}
+
+variable "stream_view_type" {
+  type        = string
+  default     = "NEW_AND_OLD_IMAGES"
+  description = "Valid values: KEYS_ONLY, NEW_IMAGE, OLD_IMAGE, NEW_AND_OLD_IMAGES"
+}

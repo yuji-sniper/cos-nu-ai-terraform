@@ -114,6 +114,8 @@ module "dynamodb_generation_job" {
   ttl = {
     attribute_name = "ttl"
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 # ComfyUIインスタンスへの最終アクセス日時を管理
@@ -583,7 +585,7 @@ module "lambda_generation_job" {
           # DynamoDB
           {
             Effect   = "Allow"
-            Action   = ["dynamodb:GetItem"]
+            Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
             Resource = [module.dynamodb_generation_job.arn]
           },
           {
@@ -762,6 +764,74 @@ module "lambda_stop_comfyui_instance" {
       })
     }
   ]
+}
+
+# トークン回復
+module "lambda_recover_tokens" {
+  source       = "../../modules/lambda"
+  name         = "recover-tokens"
+  handler      = "index.handler"
+  runtime      = "nodejs22.x"
+  timeout      = 30
+  memory_size  = 128
+  source_dir   = "${path.module}/sources/lambda/recover_tokens"
+  output_path  = "${path.module}/outputs/lambda/recover_tokens.zip"
+  s3_bucket_id = module.s3_lambda_functions.bucket_id
+  s3_key       = "recover_tokens/index.zip"
+
+  layer_arns = [
+    module.lambda_layer_supabase_nodejs.arn,
+  ]
+
+  environment = {
+    SSM_PARAMETER_NAME_SUPABASE_URL              = module.ssm_parameter_supabase_url.name
+    SSM_PARAMETER_NAME_SUPABASE_SERVICE_ROLE_KEY = module.ssm_parameter_supabase_service_role_key.name
+    DYNAMODB_GENERATION_JOB_TABLE_NAME           = module.dynamodb_generation_job.table_name
+    TOKEN_RECOVERY_AMOUNT                        = "1"
+  }
+
+  inline_policy_json_documents = [
+    {
+      name = "LambdaRecoverTokensPolicy"
+      document = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          # SSM
+          {
+            Effect = "Allow"
+            Action = "ssm:GetParameter"
+            Resource = [
+              module.ssm_parameter_supabase_url.arn,
+              module.ssm_parameter_supabase_service_role_key.arn,
+            ]
+          },
+          # DynamoDB Streams
+          {
+            Effect = "Allow"
+            Action = [
+              "dynamodb:DescribeStream",
+              "dynamodb:GetRecords",
+              "dynamodb:GetShardIterator",
+              "dynamodb:ListStreams"
+            ]
+            Resource = "${module.dynamodb_generation_job.arn}/stream/*"
+          },
+          # DynamoDB Table
+          {
+            Effect = "Allow"
+            Action = ["dynamodb:UpdateItem"]
+            Resource = module.dynamodb_generation_job.arn
+          }
+        ]
+      })
+    }
+  ]
+
+  event_source_mapping = {
+    event_source_arn    = module.dynamodb_generation_job.stream_arn
+    batch_size          = 100 // DynamoDBのデフォルト
+    starting_position   = "LATEST"
+  }
 }
 
 # ==================================================
