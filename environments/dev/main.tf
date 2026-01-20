@@ -393,16 +393,17 @@ module "vpc_endpoint_main" {
     }
   ]
   interface = [
-    {
-      service_name       = "com.amazonaws.${local.region}.sts"
-      subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
-    },
-    {
-      service_name       = "com.amazonaws.${local.region}.ec2"
-      subnet_ids         = module.vpc_main.private_subnet_ids
-      security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
-    },
+    # 動作確認する際にコメントインする
+    # {
+    #   service_name       = "com.amazonaws.${local.region}.sts"
+    #   subnet_ids         = module.vpc_main.private_subnet_ids
+    #   security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    # },
+    # {
+    #   service_name       = "com.amazonaws.${local.region}.ec2"
+    #   subnet_ids         = module.vpc_main.private_subnet_ids
+    #   security_group_ids = [module.security_group_vpc_endpoint_main.security_group_id]
+    # },
     # SSM接続したい時に作成する
     # {
     #   service_name       = "com.amazonaws.${local.region}.ssm"
@@ -472,7 +473,8 @@ module "ec2_comfyui" {
   security_group_ids = [module.security_group_ec2_comfyui.security_group_id]
   associate_public_ip_address = false
   user_data_base64 = data.cloudinit_config.comfyui.rendered
-  user_data_replace_on_change = true
+  # user_data_replace_on_change = true
+  user_data_replace_on_change = false
   root_block_device = {
     volume_size = 60
     volume_type = "gp3"
@@ -887,7 +889,7 @@ module "iam_user_backend" {
       # S3
       {
         Effect = "Allow"
-        Action = ["s3:ListBucket", "s3:PutObject", "s3:DeleteObject"]
+        Action = ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource = [
           "arn:aws:s3:::${module.s3_private.bucket_id}",
           "arn:aws:s3:::${module.s3_private.bucket_id}/*"
